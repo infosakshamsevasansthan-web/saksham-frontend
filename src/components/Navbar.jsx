@@ -39,7 +39,7 @@ const Navbar = () => {
     >
       <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
         <img src="/logo.png" alt="Saksham Logo" className="h-10 w-auto" />
-        <span className="text-2xl font-black text-emerald-800 tracking-tighter">SAKSHAM</span>
+        <span className="text-2xl font-black text-emerald-800 tracking-tighter">SAKSHAM CITY</span>
       </div>
 
       <div className="hidden md:flex items-center gap-8 font-bold text-slate-600">
