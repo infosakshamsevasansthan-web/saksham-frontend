@@ -25,7 +25,7 @@ const Footer = () => {
               <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold text-xl">
                 S
               </div>
-              <span className="text-2xl font-black text-white tracking-tighter tracking-widest">SAKSHAM</span>
+              <span className="text-2xl font-black text-white tracking-tighter tracking-widest">SAKSHAM CITY</span>
             </div>
             <p className="text-slate-400 leading-relaxed">
               Bharat ka sabse advance City Management System. Hum shehron ko Swachh, Sundar aur Saksham banane ke liye digital kranti la rahe hain.
