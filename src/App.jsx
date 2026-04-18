@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 // --- Public Pages ---
 import LandingPage from './pages/LandingPage';
 import AdminLogin from './pages/Auth/AdminLogin';
+import ContactForm from './ContactForm';
 
 // --- Super Admin Pages ---
 import SADashboard from './pages/SuperAdmin/SADashboard';
