@@ -8,35 +8,45 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [serverOtp, setServerOtp] = useState(null); 
   const [otpValues, setOtpValues] = useState(new Array(6).fill(""));
   const inputRefs = useRef([]);
   const [formData, setFormData] = useState({ tenantId: '', mobile: '' });
+  
+  // --- Timer States ---
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [canResend, setCanResend] = useState(false);
 
-  // --- 1. Check if already Logged In (Security Check) ---
   useEffect(() => {
     const isAuth = localStorage.getItem('isAuth');
-    const role = localStorage.getItem('role');
-    
     if (isAuth === 'true') {
-      if (role === 'SUPER_ADMIN') {
-        navigate('/super-admin/dashboard', { replace: true });
-      } else {
-        navigate('/admin/dashboard', { replace: true });
-      }
+      const role = localStorage.getItem('role');
+      navigate(role === 'SUPER_ADMIN' ? '/super-admin/dashboard' : '/admin/dashboard', { replace: true });
     } else {
       const timer = setTimeout(() => setLoading(false), 1500);
       return () => clearTimeout(timer);
     }
   }, [navigate]);
 
+  // --- OTP Countdown Logic ---
+  useEffect(() => {
+    let timer;
+    if (step === 2 && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setCanResend(true);
+      clearInterval(timer);
+    }
+    return () => clearInterval(timer);
+  }, [step, timeLeft]);
+
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // --- 2. Send OTP logic ---
   const handleSendOTP = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
 
     try {
@@ -50,21 +60,20 @@ const AdminLogin = () => {
       });
 
       const data = await response.json();
-
       if (data.success) {
-        setServerOtp(data.otp); 
         setStep(2);
+        setTimeLeft(60); // Reset timer on success
+        setCanResend(false);
       } else {
         alert(data.message || "User not found!");
       }
     } catch (error) {
-      alert("Backend Server Connect nahi ho raha!");
+      alert("Backend Server Error!");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 3. OTP Box Logic (Auto-focus) ---
   const handleOtpChange = (element, index) => {
     if (isNaN(element.value)) return false;
     const newOtp = [...otpValues];
@@ -77,39 +86,51 @@ const AdminLogin = () => {
     if (e.key === "Backspace" && !otpValues[index] && index > 0) inputRefs.current[index - 1].focus();
   };
 
-  // --- 4. Final Verify OTP & Login (Logic Fixed for Super Admin) ---
-  const handleVerifyOTP = (e) => {
+  const handleVerifyOTP = async (e) => {
     e.preventDefault();
     const fullOtp = otpValues.join("");
-    
-    if (fullOtp === String(serverOtp) || fullOtp === "123456") {
-      setLoading(true);
-      
-      setTimeout(() => {
-        // Purana session clear karein
+    if (fullOtp.length < 6) return alert("Please enter 6-digit OTP");
+
+    setLoading(true);
+    try {
+      const response = await fetch('https://saksham-backend-9719.onrender.com/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mobile: formData.mobile, 
+          otp: fullOtp, 
+          tenant_id: formData.tenantId 
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
         localStorage.clear();
-
-        // Tenant ID ko handle karein (Trim aur UpperCase)
-        const checkID = formData.tenantId.trim().toUpperCase();
-
         localStorage.setItem('isAuth', 'true');
-        localStorage.setItem('tenantId', checkID);
-        localStorage.setItem('userName', 'Admin User');
-
-        // ✅ FIXED LOGIC: UpperCase ID ko UpperCase strings se compare karein
-        if (checkID === 'MASTER' || checkID === 'SUPER_ADMIN') {
+        localStorage.setItem('tenantId', data.user.tenant);
+        localStorage.setItem('userName', data.user.name);
+        
+        const tenant = data.user.tenant.toUpperCase();
+        if (tenant === 'SUPER_ADMIN' || formData.tenantId.toUpperCase() === 'MASTER') {
           localStorage.setItem('role', 'SUPER_ADMIN');
-          setLoading(false);
           navigate('/super-admin/dashboard', { replace: true });
         } else {
           localStorage.setItem('role', 'TENANT_ADMIN');
-          setLoading(false);
           navigate('/admin/dashboard', { replace: true });
         }
-      }, 1500);
-    } else {
-      alert("Invalid OTP! Try again.");
+      } else {
+        alert(data.message || "Invalid OTP!");
+      }
+    } catch (error) {
+      alert("Server error!");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Timer format Helper
+  const formatTime = (seconds) => {
+    return `00:${seconds < 10 ? `0${seconds}` : seconds}`;
   };
 
   return (
@@ -118,7 +139,7 @@ const AdminLogin = () => {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-xl w-full max-w-[1000px] h-auto md:h-[600px] rounded-[40px] shadow-2xl flex flex-col md:flex-row overflow-hidden border border-white z-10">
         
-        {/* Left Side: Branding (Centered) */}
+        {/* Left Side: Branding */}
         <div className="w-full md:w-1/2 bg-emerald-600 p-12 flex flex-col items-center justify-center text-center text-white relative">
           <div className="z-10 flex flex-col items-center">
             <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="bg-white/10 p-5 rounded-3xl backdrop-blur-md mb-8 shadow-xl">
@@ -127,7 +148,6 @@ const AdminLogin = () => {
             <h2 className="text-4xl font-black leading-tight mb-4 tracking-tighter uppercase">Saksham <br /> Control Center</h2>
             <p className="text-emerald-100 font-medium max-w-[280px] opacity-80">High-security gateway for municipal management.</p>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/30 to-transparent pointer-events-none"></div>
         </div>
 
         {/* Right Side: Form Area */}
@@ -178,7 +198,15 @@ const AdminLogin = () => {
                   <button type="submit" className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black text-lg hover:bg-emerald-700 transition-all shadow-xl active:scale-95">
                     Authorize Login <ShieldCheck size={20} />
                   </button>
-                  <p className="text-center text-sm font-bold text-slate-400">Didn't receive? <span className="text-emerald-600 cursor-pointer hover:underline">Resend</span></p>
+                  
+                  {/* Timer & Resend Logic */}
+                  <div className="text-center text-sm font-bold text-slate-400">
+                    {canResend ? (
+                      <p>Didn't receive? <span onClick={handleSendOTP} className="text-emerald-600 cursor-pointer hover:underline">Resend</span></p>
+                    ) : (
+                      <p>Resend OTP in <span className="text-slate-800">{formatTime(timeLeft)}</span></p>
+                    )}
+                  </div>
                 </form>
               </motion.div>
             )}
