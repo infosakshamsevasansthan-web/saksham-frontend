@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const AddWard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [circleLoading, setCircleLoading] = useState(false); // 👈 1. नया लोडिंग स्टेट यहाँ जोड़ा
   const [circles, setCircles] = useState([]);
   const [showCircleModal, setShowCircleModal] = useState(false);
   
@@ -34,9 +35,12 @@ const AddWard = () => {
 
   useEffect(() => { fetchCircles(); }, [tenantId]);
 
-  // 2. Add Circle Logic
+  // 2. Add Circle Logic (Updated with Loading Check)
   const handleAddCircle = async (e) => {
     e.preventDefault();
+    if (circleLoading) return; // 👈 दोबारा क्लिक होने से रोकेगा
+
+    setCircleLoading(true); // 👈 लोडिंग शुरू
     try {
       const res = await axios.post('https://saksham-backend-9719.onrender.com/api/admin/circles/add', {
         tenant_id: tenantId,
@@ -46,10 +50,14 @@ const AddWard = () => {
       if (res.data.success) {
         toast.success('Circle registered in system! ✅');
         setNewCircleData({ name: '', address: '' });
-        fetchCircles(); // List update karne ke liye
+        fetchCircles(); 
         setShowCircleModal(false);
       }
-    } catch (err) { toast.error('Error adding circle'); }
+    } catch (err) { 
+        toast.error(err.response?.data?.message || 'Error adding circle'); 
+    } finally {
+        setCircleLoading(false); // 👈 लोडिंग खत्म
+    }
   };
 
   // 3. Add Ward Logic
@@ -92,7 +100,7 @@ const AddWard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* LEFT: New Ward Enrollment Form (7 columns) */}
+          {/* LEFT: New Ward Enrollment Form */}
           <div className="lg:col-span-7 bg-white rounded-[45px] shadow-sm border border-slate-100 overflow-hidden">
              <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
                 <div>
@@ -108,7 +116,6 @@ const AddWard = () => {
              </div>
 
              <form onSubmit={handleWardSubmit} className="p-10 space-y-8">
-                {/* Circle Dropdown */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Select Reporting Circle (अंचल)</label>
                   <div className="relative">
@@ -146,7 +153,7 @@ const AddWard = () => {
              </form>
           </div>
 
-          {/* RIGHT: Circle Registry Table (5 columns) */}
+          {/* RIGHT: Circle Registry Table */}
           <div className="lg:col-span-5 flex flex-col space-y-6">
              <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex-1">
                 <div className="p-6 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center">
@@ -220,7 +227,16 @@ const AddWard = () => {
                         onChange={(e) => setNewCircleData({...newCircleData, address: e.target.value})}
                       />
                    </div>
-                   <button className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-emerald-100">Establish Circle Master</button>
+                   {/* 👈 2. बटन में Loading logic यहाँ जोड़ा गया है */}
+                   <button 
+                    type="submit"
+                    disabled={circleLoading}
+                    className={`w-full p-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-lg flex items-center justify-center gap-2
+                      ${circleLoading ? 'bg-slate-400 cursor-not-allowed text-white' : 'bg-emerald-600 text-white hover:bg-slate-900 shadow-emerald-100'}`}
+                   >
+                     {circleLoading && <Loader2 size={14} className="animate-spin" />}
+                     {circleLoading ? 'Registering...' : 'Establish Circle Master'}
+                   </button>
                 </form>
              </motion.div>
           </div>
