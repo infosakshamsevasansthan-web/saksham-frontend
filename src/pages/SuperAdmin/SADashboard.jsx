@@ -79,7 +79,7 @@ const SADashboard = () => {
       if (result.success) {
         setData(prev => ({
           stats: result.stats,
-          chartData: result.chartData.length > 0 ? result.chartData : prev.chartData
+          chartData: result.chartData?.length > 0 ? result.chartData : prev.chartData
         }));
       }
     } catch (error) {
