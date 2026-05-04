@@ -6,8 +6,8 @@ import axios from 'axios';
 
 const AddHousehold = () => {
   const navigate = useNavigate();
-  const [wards, setWards] = useState([]); // Database se wards yahan aayenge
-  const [roads, setRoads] = useState([]); // Selected ward ki roads yahan aayenge
+  const [wards, setWards] = useState([]); 
+  const [roads, setRoads] = useState([]); 
   const [formData, setFormData] = useState({
     ward_id: '', road_id: '', muni_house_no: '', mobile: '',
     owner_name: '', guardian_name: '', address: '', hhd_id: 'AUTO-GENERATING...'
@@ -16,42 +16,56 @@ const AddHousehold = () => {
   const tenantId = "SAK-SIW-6925";
   const API_BASE = "https://saksham-backend-9719.onrender.com";
 
-  // 1. Load All Wards on Mount
+  // 1. Page load par saare Wards load karein
   useEffect(() => {
-    axios.get(`${API_BASE}/api/admin/wards/${tenantId}`)
-      .then(res => {
-        if(res.data.success) setWards(res.data.data);
-      })
-      .catch(err => console.error("Error fetching wards"));
+    const fetchWards = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/admin/wards/${tenantId}`);
+        if(res.data.success) {
+          setWards(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error fetching wards:", err);
+      }
+    };
+    fetchWards();
   }, []);
 
-  // 2. Fetch Roads & HHD_ID when Ward Changes (Dependent Logic)
+  // 2. Ward badalne par Roads aur HHD-ID fetch karein
   const handleWardChange = async (wardId) => {
+    // Reset selection
     setFormData(prev => ({ ...prev, ward_id: wardId, road_id: '', hhd_id: 'GENERATING...' }));
-    setRoads([]); // Purani roads clear karein
+    setRoads([]);
 
     if (!wardId) return;
 
     try {
-      // Get Dependent Roads
+      // API call for Roads
       const roadRes = await axios.get(`${API_BASE}/api/admin/roads-by-ward/${tenantId}/${wardId}`);
       if(roadRes.data.success) setRoads(roadRes.data.data);
 
-      // Get Generated HHD ID
+      // API call for HHD ID
       const hhdRes = await axios.get(`${API_BASE}/api/admin/generate-hhd-id/${tenantId}/${wardId}`);
-      setFormData(prev => ({ ...prev, hhd_id: hhdRes.data.hhd_id }));
+      if(hhdRes.data.success) {
+        setFormData(prev => ({ ...prev, hhd_id: hhdRes.data.hhd_id }));
+      }
     } catch (err) {
-      console.error("Error updating ward dependent data");
+      console.error("Error updating dependent data:", err);
+      setFormData(prev => ({ ...prev, hhd_id: 'ERROR-GEN' }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE}/api/admin/households/add`, { ...formData, tenant_id: tenantId });
-      alert("Household Registered Successfully!");
-      navigate('/admin/households');
-    } catch (err) { alert("Error adding household"); }
+      const response = await axios.post(`${API_BASE}/api/admin/households/add`, { ...formData, tenant_id: tenantId });
+      if(response.data.success) {
+        alert("Household Registered Successfully!");
+        navigate('/admin/households');
+      }
+    } catch (err) { 
+      alert("Error adding household: " + (err.response?.data?.message || err.message)); 
+    }
   };
 
   return (
@@ -73,19 +87,18 @@ const AddHousehold = () => {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white p-10 rounded-[50px] shadow-sm border border-slate-100 relative overflow-hidden">
+          <div className="bg-white p-10 rounded-[50px] shadow-sm border border-slate-100">
              <div className="flex items-center gap-3 mb-8">
                 <div className="bg-slate-900 p-2 rounded-xl text-white"><MapPin size={20}/></div>
                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Property Location</h2>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* WARD DROPDOWN (Now Dynamic) */}
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Ward Number</label>
                    <select 
                     required
-                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
                     value={formData.ward_id}
                     onChange={(e) => handleWardChange(e.target.value)}
                    >
@@ -96,13 +109,12 @@ const AddHousehold = () => {
                    </select>
                 </div>
 
-                {/* ROAD DROPDOWN (Now Dependent) */}
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Road / Street</label>
                    <select 
                     required
                     disabled={!formData.ward_id}
-                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all disabled:opacity-50"
+                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
                     value={formData.road_id}
                     onChange={(e) => setFormData({...formData, road_id: e.target.value})}
                    >
@@ -117,16 +129,14 @@ const AddHousehold = () => {
                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Muni House No.</label>
                    <input 
                     type="text" required placeholder="Ex: 124/B"
-                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
                     onChange={(e) => setFormData({...formData, muni_house_no: e.target.value})}
                    />
                 </div>
              </div>
           </div>
 
-          {/* Owner details section wahi rahega jo aapne diya tha... */}
-          {/* ... (Baaki Form Same hai) ... */}
-          <div className="bg-white p-10 rounded-[50px] shadow-sm border border-slate-100 relative overflow-hidden">
+          <div className="bg-white p-10 rounded-[50px] shadow-sm border border-slate-100">
              <div className="flex items-center gap-3 mb-8">
                 <div className="bg-emerald-500 p-2 rounded-xl text-white"><User size={20}/></div>
                 <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Owner Details</h2>
@@ -137,7 +147,7 @@ const AddHousehold = () => {
                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Owner Full Name (English)</label>
                    <input 
                     type="text" required placeholder="Enter Name"
-                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none"
                     onChange={(e) => setFormData({...formData, owner_name: e.target.value})}
                    />
                 </div>
@@ -145,7 +155,7 @@ const AddHousehold = () => {
                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Father / Husband Name</label>
                    <input 
                     type="text" required placeholder="Guardian Name"
-                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none"
                     onChange={(e) => setFormData({...formData, guardian_name: e.target.value})}
                    />
                 </div>
@@ -155,7 +165,7 @@ const AddHousehold = () => {
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18}/>
                       <input 
                         type="tel" required placeholder="10 Digit Mobile"
-                        className="w-full bg-slate-50 border-none p-4 pl-12 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        className="w-full bg-slate-50 border-none p-4 pl-12 rounded-2xl font-bold text-slate-700 outline-none"
                         onChange={(e) => setFormData({...formData, mobile: e.target.value})}
                       />
                    </div>
@@ -164,7 +174,7 @@ const AddHousehold = () => {
                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Full Address</label>
                    <textarea 
                     rows="1" placeholder="Address Details"
-                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full bg-slate-50 border-none p-4 rounded-2xl font-bold text-slate-700 outline-none"
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                    ></textarea>
                 </div>
