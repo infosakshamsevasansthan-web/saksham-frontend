@@ -7,25 +7,37 @@ import { toast, Toaster } from 'react-hot-toast';
 const CityTopbar = ({ toggleSidebar }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showModal, setShowModal] = useState(null); 
-  const [profileData, setProfileData] = useState(null);
+  // 🟢 Fixed: Initialize with empty strings instead of null to prevent disappear on refresh
+  const [profileData, setProfileData] = useState({
+    full_name: '', email: '', mobile: '', muni_address: '', municipality_name: ''
+  });
   const [loading, setLoading] = useState(false);
   
-  // Logo States
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const fileInputRef = useRef(null);
 
+  const API_BASE = "https://saksham-backend-9719.onrender.com";
   const tenantId = localStorage.getItem('tenantId');
 
   const fetchProfile = async () => {
     if (!tenantId) return;
     try {
-      const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/profile-details/${tenantId}`);
+      const res = await axios.get(`${API_BASE}/api/admin/profile-details/${tenantId}`);
       if (res.data.success) {
-        setProfileData(res.data.data);
-        // Agar DB mein pehle se logo hai toh preview set karein
-        if (res.data.data.logo_url) {
-          setLogoPreview(`https://saksham-backend-9719.onrender.com${res.data.data.logo_url}`);
+        const d = res.data.data;
+        // 🟢 Fixed: Mapping DB fields to State
+        setProfileData({
+          full_name: d.admin_name || d.full_name || '',
+          email: d.email || '',
+          mobile: d.mobile || d.phone || '',
+          muni_address: d.muni_address || '',
+          municipality_name: d.muni_name || d.municipality_name || ''
+        });
+        
+        // 🟢 Fixed: Database column name is 'muni_logo_url'
+        if (d.muni_logo_url) {
+          setLogoPreview(`${API_BASE}${d.muni_logo_url}`);
         }
       }
     } catch (err) {
@@ -37,7 +49,6 @@ const CityTopbar = ({ toggleSidebar }) => {
     fetchProfile();
   }, [tenantId]);
 
-  // Logo selection handler
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -50,7 +61,6 @@ const CityTopbar = ({ toggleSidebar }) => {
     e.preventDefault();
     setLoading(true);
 
-    // File upload ke liye FormData use karna padega
     const formData = new FormData();
     formData.append('tenant_id', tenantId);
     formData.append('full_name', profileData.full_name);
@@ -58,18 +68,18 @@ const CityTopbar = ({ toggleSidebar }) => {
     formData.append('mobile', profileData.mobile);
     formData.append('muni_address', profileData.muni_address);
     if (logoFile) {
-      formData.append('logo', logoFile); // Backend mein 'logo' name se file jayegi
+      formData.append('logo', logoFile);
     }
 
     try {
-      const res = await axios.post('https://saksham-backend-9719.onrender.com/api/admin/update-profile', formData, {
+      const res = await axios.post(`${API_BASE}/api/admin/update-profile`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
       if (res.data.success) {
         toast.success("Profile & Logo Updated! ✅");
         setShowModal(null);
-        fetchProfile(); // Data refresh karne ke liye
+        fetchProfile(); 
       }
     } catch (err) {
       toast.error("Update failed! ❌");
@@ -86,13 +96,11 @@ const CityTopbar = ({ toggleSidebar }) => {
       </button>
 
       <div className="flex items-center gap-4">
-        {/* Alerts */}
         <button className="p-3 bg-slate-50 text-slate-400 rounded-2xl relative">
           <Bell size={20} />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
         </button>
 
-        {/* Profile Card */}
         <div className="relative">
           <div onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-3 cursor-pointer p-1.5 bg-slate-50 border border-slate-100 rounded-2xl hover:shadow-md transition-all">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-slate-100 overflow-hidden shadow-sm">
@@ -132,7 +140,6 @@ const CityTopbar = ({ toggleSidebar }) => {
         </div>
       </div>
 
-      {/* --- INTEGRATED MODAL (WITH LOGO UPLOAD) --- */}
       <AnimatePresence>
         {showModal && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
@@ -147,8 +154,6 @@ const CityTopbar = ({ toggleSidebar }) => {
               <div className="p-8">
                 {showModal === 'profile' ? (
                   <form onSubmit={handleUpdate} className="space-y-8">
-                    
-                    {/* LOGO UPLOAD SECTION */}
                     <div className="flex flex-col items-center gap-4 bg-slate-50 p-6 rounded-[30px] border border-dashed border-slate-200">
                         <div className="relative group">
                            <div className="w-28 h-28 bg-white rounded-3xl overflow-hidden border-4 border-white shadow-xl flex items-center justify-center">
@@ -158,11 +163,7 @@ const CityTopbar = ({ toggleSidebar }) => {
                                 <Upload size={30} className="text-slate-300" />
                               )}
                            </div>
-                           <button 
-                             type="button"
-                             onClick={() => fileInputRef.current.click()}
-                             className="absolute -bottom-2 -right-2 bg-emerald-600 text-white p-2.5 rounded-2xl shadow-lg hover:scale-110 transition-all active:scale-95"
-                           >
+                           <button type="button" onClick={() => fileInputRef.current.click()} className="absolute -bottom-2 -right-2 bg-emerald-600 text-white p-2.5 rounded-2xl shadow-lg hover:scale-110 transition-all active:scale-95">
                              <Camera size={18} />
                            </button>
                            <input type="file" hidden ref={fileInputRef} accept="image/*" onChange={handleLogoChange} />
