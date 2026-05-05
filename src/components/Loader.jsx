@@ -5,82 +5,96 @@ const Loader = () => {
   return (
     <div className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
       
-      {/* Container for the synchronized logos */}
-      <div className="relative w-40 h-40 mb-12 flex items-center justify-center">
+      {/* Logos Container */}
+      <div className="relative w-48 h-48 mb-12 flex items-center justify-center">
         
-        {/* 1. Outer Ring - Turant rotate hona shuru karega */}
+        {/* 1. The Ring (Always Present & Rotating) */}
         <motion.img 
           src="/logo-ring.png" 
           alt="Saksham Ring"
-          initial={{ rotate: 0, scale: 0.8, opacity: 0 }}
-          animate={{ rotate: 360, scale: 1, opacity: 1 }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1, rotate: 360 }}
           transition={{ 
-            rotate: { duration: 4, repeat: Infinity, ease: "linear" },
-            scale: { duration: 0.5 },
-            opacity: { duration: 0.5 }
+            opacity: { duration: 1 },
+            scale: { duration: 1 },
+            rotate: { duration: 6, repeat: Infinity, ease: "linear" } 
           }}
           className="absolute inset-0 w-full h-full z-20"
         />
 
-        {/* 2. Inner City Logo - Bina kisi delay ke Ring ke saath hi aayega */}
+        {/* 2. The City Logo (Starts Blurred and Small) */}
         <motion.img 
           src="/logo-city.png" 
           alt="City"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ 
-            duration: 0.6, // Tezi se aayega
-            ease: "easeOut"
+          initial={{ 
+            opacity: 0, 
+            filter: "blur(20px)", 
+            scale: 0.7 
           }}
-          className="w-24 h-24 object-contain z-10"
+          animate={{ 
+            opacity: 1, 
+            filter: "blur(0px)", 
+            scale: 1 
+          }}
+          transition={{ 
+            duration: 5, // 🟢 5 Second ka slow visible effect
+            ease: "easeInOut"
+          }}
+          className="w-28 h-28 object-contain z-10"
         />
 
-        {/* 3. Subtle Pulse Effect - City logo ko aur highlight karne ke liye */}
+        {/* 3. Background Glow - Ye bhi dhire dhire badhega */}
         <motion.div 
-          animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.5, 0.2] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute w-24 h-24 bg-emerald-400 rounded-full blur-2xl z-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.4, 0.2] }}
+          transition={{ duration: 5 }}
+          className="absolute w-32 h-32 bg-emerald-400 rounded-full blur-3xl z-0"
         ></motion.div>
       </div>
 
-      {/* 4. Dancing Dots Animation */}
-      <div className="flex gap-2.5">
+      {/* 4. Progress Dots */}
+      <div className="flex gap-3">
         {[0, 1, 2, 3].map((index) => (
           <motion.div
             key={index}
             animate={{ 
-              y: [0, -15, 0],
-              backgroundColor: ["#059669", "#34d399", "#059669"]
+              y: [0, -12, 0],
+              opacity: [0.3, 1, 0.3]
             }}
             transition={{ 
-              duration: 0.8, 
+              duration: 1, 
               repeat: Infinity, 
-              delay: index * 0.1, 
-              ease: "easeInOut" 
+              delay: index * 0.2 
             }}
-            className="w-3.5 h-3.5 rounded-full shadow-md"
+            className="w-3 h-3 bg-emerald-500 rounded-full"
           />
         ))}
       </div>
       
       {/* 5. Professional Text */}
-      <div className="mt-10 text-center">
-        <h2 className="text-slate-800 font-black tracking-[0.4em] text-xs uppercase mb-2">
-          Saksham City
-        </h2>
-        <motion.p 
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="text-emerald-600 font-bold text-[10px] uppercase tracking-[0.2em]"
+      <div className="mt-12 text-center">
+        <motion.h2 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="text-slate-800 font-black tracking-[0.5em] text-sm uppercase mb-2"
         >
-          Master Control Engine Suite
+          Saksham City
+        </motion.h2>
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2 }}
+          className="text-emerald-600 font-bold text-[11px] uppercase tracking-[0.3em]"
+        >
+          Initializing Master Systems...
         </motion.p>
       </div>
 
-      {/* Footer Branding */}
-      <div className="absolute bottom-8 opacity-40">
-        <p className="text-slate-400 font-bold text-[9px] uppercase tracking-tighter">
-          Synchronizing Municipal Data Hub • 2026
+      {/* Branding Footer */}
+      <div className="absolute bottom-10 opacity-30">
+        <p className="text-slate-500 font-bold text-[9px] uppercase tracking-widest">
+          Secured Municipal Infrastructure • 2026
         </p>
       </div>
     </div>
