@@ -3,42 +3,54 @@ import { motion } from 'framer-motion';
 
 const Loader = () => {
   return (
-    <div className="fixed inset-0 z-[9999] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center">
+    <div className="fixed inset-0 z-[9999] bg-white flex flex-col items-center justify-center">
       
-      {/* 1. Central Animated Logo Logic */}
-      <div className="relative w-32 h-32 mb-12 flex items-center justify-center">
+      {/* Container for the synchronized logos */}
+      <div className="relative w-40 h-40 mb-12 flex items-center justify-center">
         
-        {/* Outer Rotating Ring (Saksham Seal) */}
+        {/* 1. Outer Ring - Turant rotate hona shuru karega */}
         <motion.img 
           src="/logo-ring.png" 
           alt="Saksham Ring"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          initial={{ rotate: 0, scale: 0.8, opacity: 0 }}
+          animate={{ rotate: 360, scale: 1, opacity: 1 }}
+          transition={{ 
+            rotate: { duration: 4, repeat: Infinity, ease: "linear" },
+            scale: { duration: 0.5 },
+            opacity: { duration: 0.5 }
+          }}
           className="absolute inset-0 w-full h-full z-20"
         />
 
-        {/* Inner Pulsing City Icon */}
+        {/* 2. Inner City Logo - Bina kisi delay ke Ring ke saath hi aayega */}
         <motion.img 
           src="/logo-city.png" 
           alt="City"
-          animate={{ scale: [0.8, 1, 0.8], opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="w-16 h-16 object-contain z-10"
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ 
+            duration: 0.6, // Tezi se aayega
+            ease: "easeOut"
+          }}
+          className="w-24 h-24 object-contain z-10"
         />
 
-        {/* Glow Effect behind the logo */}
-        <div className="absolute inset-0 bg-emerald-400/20 blur-3xl rounded-full animate-pulse"></div>
+        {/* 3. Subtle Pulse Effect - City logo ko aur highlight karne ke liye */}
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.5, 0.2] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute w-24 h-24 bg-emerald-400 rounded-full blur-2xl z-0"
+        ></motion.div>
       </div>
 
-      {/* 2. Professional Progress Indicator (Green Balls) */}
-      <div className="flex gap-2">
+      {/* 4. Dancing Dots Animation */}
+      <div className="flex gap-2.5">
         {[0, 1, 2, 3].map((index) => (
           <motion.div
             key={index}
             animate={{ 
-              y: [0, -12, 0],
-              backgroundColor: ["#10b981", "#34d399", "#10b981"],
-              scale: [1, 1.2, 1]
+              y: [0, -15, 0],
+              backgroundColor: ["#059669", "#34d399", "#059669"]
             }}
             transition={{ 
               duration: 0.8, 
@@ -46,33 +58,29 @@ const Loader = () => {
               delay: index * 0.1, 
               ease: "easeInOut" 
             }}
-            className="w-3 h-3 rounded-full shadow-lg shadow-emerald-100"
+            className="w-3.5 h-3.5 rounded-full shadow-md"
           />
         ))}
       </div>
       
-      {/* 3. Dynamic Text with simple fade */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="mt-8 text-center"
-      >
-        <p className="text-slate-800 font-black tracking-[0.3em] text-[10px] uppercase">
-          Saksham Master Engine
-        </p>
+      {/* 5. Professional Text */}
+      <div className="mt-10 text-center">
+        <h2 className="text-slate-800 font-black tracking-[0.4em] text-xs uppercase mb-2">
+          Saksham City
+        </h2>
         <motion.p 
-          animate={{ opacity: [0.4, 1, 0.4] }}
+          animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 1.5, repeat: Infinity }}
-          className="text-emerald-600 font-bold text-[9px] uppercase mt-2 tracking-widest"
+          className="text-emerald-600 font-bold text-[10px] uppercase tracking-[0.2em]"
         >
-          Synchronizing Data...
+          Master Control Engine Suite
         </motion.p>
-      </motion.div>
+      </div>
 
-      {/* Bottom Footer for Loader */}
-      <div className="absolute bottom-10">
-        <p className="text-slate-300 font-bold text-[8px] uppercase tracking-tighter">
-          Powered by Saksham Digitization 2026
+      {/* Footer Branding */}
+      <div className="absolute bottom-8 opacity-40">
+        <p className="text-slate-400 font-bold text-[9px] uppercase tracking-tighter">
+          Synchronizing Municipal Data Hub • 2026
         </p>
       </div>
     </div>
