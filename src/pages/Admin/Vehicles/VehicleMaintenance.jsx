@@ -75,19 +75,21 @@ const VehicleMaintenance = () => {
                 </div>
             </div>
 
-            {/* MODAL (REMAINS SAME FOR DATA ENTRY) */}
+            {/* MODAL (FIXED Z-INDEX) */}
             <AnimatePresence>
                 {showModal && (
-                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-xl rounded-[45px] shadow-2xl overflow-hidden border border-white/20">
                             <div className="p-8 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                                 <h2 className="text-xl font-black text-slate-800 uppercase italic">Repair Log: {selectedVhl?.vehicle_no}</h2>
-                                <button onClick={() => setShowModal(false)} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 shadow-sm font-black">X</button>
+                                <button onClick={() => setShowModal(false)} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 shadow-sm font-black hover:bg-rose-50 transition-all">
+                                    <X size={20} />
+                                </button>
                             </div>
                             <form onSubmit={handleSubmit} className="p-8 grid grid-cols-2 gap-6">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Work Type</label>
-                                    <select className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm" onChange={(e) => setFormData({...formData, service_type: e.target.value})}>
+                                    <select className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all" onChange={(e) => setFormData({...formData, service_type: e.target.value})}>
                                         <option>Routine Service</option>
                                         <option>Engine Repair</option>
                                         <option>Tyre Work</option>
@@ -96,24 +98,24 @@ const VehicleMaintenance = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Cost (₹)</label>
-                                    <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm" placeholder="Amount" onChange={(e) => setFormData({...formData, cost: e.target.value})} />
+                                    <input type="number" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" placeholder="Amount" onChange={(e) => setFormData({...formData, cost: e.target.value})} />
                                 </div>
                                 <div className="col-span-2 space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Garage Details</label>
-                                    <input type="text" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm" placeholder="Workshop Name" onChange={(e) => setFormData({...formData, garage_name: e.target.value})} />
+                                    <input type="text" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" placeholder="Workshop Name" onChange={(e) => setFormData({...formData, garage_name: e.target.value})} />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Current Status</label>
-                                    <select className="w-full p-4 border-2 border-emerald-100 rounded-2xl font-black text-emerald-600 bg-emerald-50 text-xs" onChange={(e) => setFormData({...formData, v_status: e.target.value})}>
+                                    <select className="w-full p-4 border-2 border-emerald-100 rounded-2xl font-black text-emerald-600 bg-emerald-50 text-xs outline-none" onChange={(e) => setFormData({...formData, v_status: e.target.value})}>
                                         <option value="active">Active (On-Road)</option>
                                         <option value="maintenance">Breakdown (Locked)</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase ml-1">Service Date</label>
-                                    <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm" onChange={(e) => setFormData({...formData, service_date: e.target.value})} />
+                                    <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20" onChange={(e) => setFormData({...formData, service_date: e.target.value})} />
                                 </div>
-                                <button type="submit" className="col-span-2 bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 mt-4">
+                                <button type="submit" className="col-span-2 bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-3 mt-4 shadow-xl shadow-slate-200">
                                     <CheckCircle2 size={18}/> Authorize Entry
                                 </button>
                             </form>
@@ -125,26 +127,24 @@ const VehicleMaintenance = () => {
     );
 };
 
-// --- 🟢 TRUCK SHAPED CARD WITH WHEELS ---
+// --- 🟢 TRUCK SHAPED CARD (WHOLE CARD CLICKABLE) ---
 const TruckCard = ({ v, onService }) => {
     const isMaint = v.status === 'maintenance';
 
     return (
         <motion.div 
             whileHover={{ x: 30 }}
+            onClick={onService} // Ab poore truck par click karne se form khulega
             className="relative flex items-end group cursor-pointer"
         >
-            {/* 1. FRONT CABIN (The Driver Side) */}
+            {/* 1. FRONT CABIN */}
             <div className={`w-24 h-32 rounded-tr-[40px] rounded-tl-[20px] transition-colors duration-500 shadow-lg relative z-20 ${isMaint ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-                {/* Windshield */}
                 <div className="absolute top-4 right-2 w-16 h-12 bg-white/20 rounded-tr-[30px] rounded-tl-lg border border-white/30" />
-                {/* Door Handle */}
                 <div className="absolute top-20 right-4 w-4 h-1 bg-black/20 rounded-full" />
-                {/* Headlight */}
                 <div className="absolute bottom-6 left-0 w-3 h-6 bg-amber-400 rounded-r-full shadow-[5px_0_15px_rgba(251,191,36,0.5)]" />
             </div>
 
-            {/* 2. CARGO BODY (The Data Card) */}
+            {/* 2. CARGO BODY */}
             <div className={`flex-1 bg-white p-6 rounded-tr-[40px] rounded-br-[20px] border-y-4 border-r-4 transition-all duration-500 relative z-10 -ml-1 h-44 shadow-2xl ${isMaint ? 'border-rose-500 shadow-rose-100' : 'border-emerald-500 shadow-emerald-100'}`}>
                 
                 <div className="flex justify-between items-start mb-4">
@@ -152,12 +152,11 @@ const TruckCard = ({ v, onService }) => {
                         <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter leading-none">{v.vehicle_no}</h3>
                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">{v.vehicle_type}</p>
                     </div>
-                    <button onClick={onService} className="bg-slate-100 p-2.5 rounded-xl hover:bg-emerald-500 hover:text-white transition-all">
+                    <div className="bg-slate-100 p-2.5 rounded-xl group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
                         <Wrench size={18} />
-                    </button>
+                    </div>
                 </div>
 
-                {/* Tiny Doc Status */}
                 <div className="flex gap-3 mb-4">
                     <StatusDot label="Fit" date={v.fitness_expiry} />
                     <StatusDot label="Ins" date={v.insurance_expiry} />
@@ -172,7 +171,7 @@ const TruckCard = ({ v, onService }) => {
                 </div>
             </div>
 
-            {/* 3. REALISTIC WHEELS (Tyres) */}
+            {/* 3. WHEELS */}
             <div className="absolute -bottom-5 left-8 z-30 flex gap-48">
                 <Tyre />
                 <Tyre />
@@ -181,33 +180,16 @@ const TruckCard = ({ v, onService }) => {
     );
 };
 
-// --- 🟢 REALISTIC WHEEL COMPONENT ---
 const Tyre = () => (
-    <motion.div 
-        animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 1, ease: "linear", repeatDelay: 0 }}
-        className="hidden group-hover:flex w-12 h-12 rounded-full bg-[#111] border-[5px] border-[#222] relative items-center justify-center shadow-xl"
-    >
-        {/* Rim / Hubcap */}
-        <div className="w-6 h-6 rounded-full bg-slate-400 border-2 border-slate-600 flex items-center justify-center overflow-hidden">
-            {/* Spokes Visual */}
-            <div className="absolute w-full h-[2px] bg-slate-500 rotate-0" />
-            <div className="absolute w-full h-[2px] bg-slate-500 rotate-90" />
-            <div className="absolute w-full h-[2px] bg-slate-500 rotate-45" />
-            <div className="absolute w-full h-[2px] bg-slate-500 -rotate-45" />
+    <div className="w-12 h-12 rounded-full bg-[#111] border-[5px] border-[#222] relative flex items-center justify-center shadow-xl overflow-hidden">
+        <div className="w-6 h-6 rounded-full bg-slate-400 border-2 border-slate-600 flex items-center justify-center relative">
+            <div className="absolute w-full h-[1px] bg-slate-600 rotate-45" />
+            <div className="absolute w-full h-[1px] bg-slate-600 -rotate-45" />
             <div className="w-2 h-2 rounded-full bg-slate-700 z-10" />
         </div>
-    </motion.div>
-);
-
-// Static Tyre (Jab hover na ho)
-const TyreStatic = () => (
-    <div className="group-hover:hidden w-12 h-12 rounded-full bg-[#111] border-[5px] border-[#222] relative flex items-center justify-center shadow-lg">
-        <div className="w-6 h-6 rounded-full bg-slate-500 border-2 border-slate-600" />
     </div>
 );
 
-// Small status dot helper
 const StatusDot = ({ label, date }) => {
     const expired = date && new Date(date) < new Date();
     return (
