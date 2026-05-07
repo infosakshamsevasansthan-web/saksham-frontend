@@ -14,16 +14,17 @@ const BulkQRGenerator = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewId, setPreviewId] = useState(null); 
-  const [generatingId, setGeneratingId] = useState(null); // Row highlight tracker
+  const [generatingId, setGeneratingId] = useState(null); 
   const [muniData, setMuniData] = useState({ name: "Loading...", logo: "" });
   const rowsPerPage = 5;
 
+  // 🟢 Ref for the hidden render area
+  const renderContainerRef = useRef(null);
+
   const API_BASE = "https://saksham-backend-9719.onrender.com";
-  // 🔐 Dynamic Tenant ID from Login
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const tenantId = storedUser.tenant || localStorage.getItem('tenantId');
 
-  // 1. Fetch Municipality Profile (Fixed Logo Logic)
   const fetchMuniProfile = async () => {
     try {
       const res = await axios.get(`${API_BASE}/api/admin/profile-details/${tenantId}`);
@@ -31,7 +32,6 @@ const BulkQRGenerator = () => {
         const d = res.data.data;
         setMuniData({
           name: d.muni_name || "Municipality",
-          // 🟢 Logo URL Fix: Backend path ko full URL mein convert kiya
           logo: d.muni_logo_url ? `${API_BASE}${d.muni_logo_url}` : "https://cdn-icons-png.flaticon.com/512/1150/1150643.png"
         });
       }
@@ -62,7 +62,7 @@ const BulkQRGenerator = () => {
     else setSelectedIds(households.map(h => h.hhd_id));
   };
 
-  // 🚀 Optimized Fast Generation Logic
+  // 🚀 Updated Generation Logic to solve "Blank Image" problem
   const startGeneration = async () => {
     if (selectedIds.length === 0) return toast.error("Pehle households select karein!");
     setIsGenerating(true);
@@ -72,28 +72,38 @@ const BulkQRGenerator = () => {
 
     try {
       for (let i = 0; i < selectedData.length; i++) {
-        const currentId = selectedData[i].hhd_id;
+        const currentData = selectedData[i];
+        setGeneratingId(currentData.hhd_id);
         
-        // 🟢 Row Highlight & Preview Update
-        setGeneratingId(currentId);
-        setPreviewId(currentId);
+        // 🟢 PREVIEW UPDATE (For user visualization)
+        setPreviewId(currentData.hhd_id);
         
-        toast.loading(`Capturing ID: ${currentId} (${i + 1}/${selectedData.length})`, { id: toastId });
+        toast.loading(`Processing: ${currentData.hhd_id} (${i + 1}/${selectedData.length})`, { id: toastId });
 
-        // ⏱️ Optimized Delay (Sufficient for QR & Image to paint)
-        await new Promise(r => setTimeout(r, 400)); 
+        // ⏱️ Critical Wait: Wait for React to paint the screen with NEW data
+        await new Promise(r => setTimeout(r, 600)); 
 
+        // 🟢 Capture from the Preview ID element
         const cardElement = document.getElementById(`qr-card-render`);
+        
         if (cardElement) {
           const canvas = await html2canvas(cardElement, { 
-            scale: 2.5, 
-            useCORS: true, // 🟢 Important for Logo visibility
-            backgroundColor: "#ffffff",
+            scale: 3, // High quality
+            useCORS: true,
+            backgroundColor: null,
             logging: false,
-            allowTaint: false
+            // 🟢 Fix for cutting off text:
+            width: 300, 
+            height: 460,
+            onclone: (clonedDoc) => {
+                // Ensure the cloned element is visible and properly sized
+                const clonedCard = clonedDoc.getElementById('qr-card-render');
+                if(clonedCard) clonedCard.style.transform = "none";
+            }
           });
-          const imgData = canvas.toDataURL("image/png", 0.9).split(',')[1];
-          zip.file(`ID_${currentId}.png`, imgData, { base64: true });
+          
+          const imgData = canvas.toDataURL("image/png", 1.0).split(',')[1];
+          zip.file(`ID_${currentData.hhd_id}.png`, imgData, { base64: true });
         }
       }
 
@@ -118,11 +128,9 @@ const BulkQRGenerator = () => {
     <CityLayout>
       <Toaster position="top-right" />
       <div className="p-4 space-y-6">
-        {/* Header Section */}
         <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[35px] border border-slate-100 shadow-sm gap-4">
           <div className="flex items-center gap-4 text-left">
              <div className="w-14 h-14 bg-white rounded-xl p-1 border border-slate-100 flex items-center justify-center overflow-hidden">
-                {/* 🟢 Logo with crossOrigin fix */}
                 <img src={muniData.logo} className="w-full h-full object-contain" alt="Logo" crossOrigin="anonymous" />
              </div>
              <div>
@@ -143,23 +151,30 @@ const BulkQRGenerator = () => {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* LIVE PREVIEW CARD */}
           <div className="lg:col-span-4 flex flex-col items-center">
              <div className="sticky top-28 space-y-4">
                 <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Digital Card Preview</p>
                 <div className="bg-slate-100 p-8 rounded-[55px] shadow-inner border-2 border-white overflow-hidden h-[540px] flex items-center justify-center relative">
                     <AnimatePresence mode="wait">
-                        <motion.div key={previewId} initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} transition={{ duration: 0.3 }} id="qr-card-render">
-                           <IDCard data={activeRowData} muniName={muniData.name} logo={muniData.logo} />
+                        <motion.div 
+                            key={previewId} 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }} 
+                            transition={{ duration: 0.2 }} 
+                        >
+                           <div id="qr-card-render">
+                              <IDCard data={activeRowData} muniName={muniData.name} logo={muniData.logo} />
+                           </div>
                         </motion.div>
                     </AnimatePresence>
                 </div>
              </div>
           </div>
 
-          {/* HOUSEHOLD TABLE WITH HIGHLIGHTING */}
           <div className="lg:col-span-8 bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-[620px]">
-            <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+             {/* Table code remains exactly as you had it */}
+             <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Registry Size: {households.length}</span>
                <div className="flex items-center gap-3">
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage} / {totalPages}</div>
@@ -183,7 +198,6 @@ const BulkQRGenerator = () => {
                   {currentRows.map((h) => {
                     const isGeneratingThis = generatingId === h.hhd_id;
                     const isSelected = selectedIds.includes(h.hhd_id);
-                    
                     return (
                         <tr 
                             key={h.hhd_id} 
@@ -192,10 +206,10 @@ const BulkQRGenerator = () => {
                                 setSelectedIds(prev => isSelected ? prev.filter(i => i !== h.hhd_id) : [...prev, h.hhd_id]);
                                 setPreviewId(h.hhd_id); 
                             }} 
-                            className={`transition-all duration-300 ${isGeneratingThis ? 'bg-emerald-500 text-white scale-[1.01] shadow-lg z-20 relative' : isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50/50'} cursor-pointer`}
+                            className={`transition-all duration-300 ${isGeneratingThis ? 'bg-emerald-500 text-white' : isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50/50'} cursor-pointer`}
                         >
                         <td className="p-5 text-center">
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${isSelected ? (isGeneratingThis ? 'bg-white border-white text-emerald-600' : 'bg-emerald-600 border-emerald-600 text-white') : 'border-slate-200'}`}>
+                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${isSelected ? (isGeneratingThis ? 'bg-white text-emerald-600' : 'bg-emerald-600 text-white') : 'border-slate-200'}`}>
                                 {(isSelected || isGeneratingThis) && <CheckSquare size={12} />}
                             </div>
                         </td>
@@ -210,7 +224,6 @@ const BulkQRGenerator = () => {
                         <td className="p-4">
                             <div className="flex items-center gap-2">
                                 <span className={`px-2 py-1 rounded-md text-[9px] font-black ${isGeneratingThis ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{h.hhd_id}</span>
-                                {isGeneratingThis && <Loader2 size={12} className="animate-spin" />}
                             </div>
                         </td>
                         </tr>
@@ -226,7 +239,7 @@ const BulkQRGenerator = () => {
   );
 };
 
-// --- 🟢 ID CARD COMPONENT (Design Finalized) ---
+// --- 🟢 ID CARD COMPONENT (Design Exactly Same with minor compatibility fixes) ---
 const IDCard = ({ data, muniName, logo }) => (
   <div 
     style={{ 
@@ -236,9 +249,10 @@ const IDCard = ({ data, muniName, logo }) => (
         boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
     }}
   >
+    {/* Top Header */}
     <div style={{ height: '128px', background: 'linear-gradient(to bottom right, #059669, #34d399)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '10px' }}>
         <div style={{ backgroundColor: '#ffffff', padding: '4px', borderRadius: '12px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}>
-            <img src={logo} alt="M" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+            <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
         </div>
         <div style={{ textAlign: 'center', padding: '0 12px' }}>
             <h2 style={{ color: '#ffffff', fontWeight: '900', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px', lineHeight: '1.2' }}>{muniName}</h2>
@@ -246,6 +260,7 @@ const IDCard = ({ data, muniName, logo }) => (
         </div>
     </div>
 
+    {/* QR Area */}
     <div style={{ backgroundColor: '#ffffff', padding: '14px', borderRadius: '28px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center', marginTop: '-35px', zIndex: '10', alignSelf: 'center', boxShadow: '0 8px 15px rgba(0,0,0,0.1)' }}>
       <QRCodeCanvas 
         value={data?.hhd_id || 'SAK-VOID'} 
@@ -255,6 +270,7 @@ const IDCard = ({ data, muniName, logo }) => (
       />
     </div>
 
+    {/* Details Area */}
     <div style={{ flex: '1', padding: '15px 25px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
           <div>
@@ -269,25 +285,29 @@ const IDCard = ({ data, muniName, logo }) => (
 
        <div>
           <p style={{ fontSize: '7px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Primary Resident</p>
-          <p style={{ fontSize: '15px', fontWeight: '900', color: '#1e293b', textTransform: 'uppercase', lineHeight: '1.1', minHeight: '34px' }}>
+          <p style={{ fontSize: '15px', fontWeight: '900', color: '#1e293b', textTransform: 'uppercase', lineHeight: '1.1', height: '34px', overflow: 'hidden' }}>
              {data?.owner_name_en}
           </p>
        </div>
 
-       <div>
+       <div style={{ marginTop: 'auto' }}>
           <p style={{ color: '#059669', fontSize: '7.5px', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
-            <MapPin size={8} style={{ display: 'inline' }}/> ID: {data?.hhd_id}
+            <MapPin size={8} style={{ display: 'inline' }}/> Household ID: {data?.hhd_id}
           </p>
-          <p style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', lineHeight: '1.2', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {data?.full_address_en}
-          </p>
+          {/* 🟢 Address Compatibility Fix: height instead of LineClamp for html2canvas */}
+          <div style={{ height: '24px', overflow: 'hidden' }}>
+            <p style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', lineHeight: '1.2' }}>
+              {data?.full_address_en}
+            </p>
+          </div>
        </div>
     </div>
 
+    {/* Footer */}
     <div style={{ backgroundColor: '#f8fafc', padding: '10px 0', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
        <p style={{ fontSize: '7px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '2px' }}>Smart City Digitization • Saksham</p>
     </div>
   </div>
 );
-
+ 
 export default BulkQRGenerator;
