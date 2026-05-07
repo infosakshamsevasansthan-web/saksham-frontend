@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Loader2, ChevronLeft, ChevronRight, Play, MapPin, CheckSquare, Square } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
 import axios from 'axios';
@@ -17,9 +16,6 @@ const BulkQRGenerator = () => {
   const [generatingId, setGeneratingId] = useState(null); 
   const [muniData, setMuniData] = useState({ name: "Loading...", logo: "" });
   const rowsPerPage = 5;
-
-  // 🟢 Ref for the hidden render area
-  const renderContainerRef = useRef(null);
 
   const API_BASE = "https://saksham-backend-9719.onrender.com";
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -62,60 +58,61 @@ const BulkQRGenerator = () => {
     else setSelectedIds(households.map(h => h.hhd_id));
   };
 
-  // 🚀 Updated Generation Logic to solve "Blank Image" problem
+  // 🚀 Logic to Start Generation with Auto-Pagination
   const startGeneration = async () => {
     if (selectedIds.length === 0) return toast.error("Pehle households select karein!");
     setIsGenerating(true);
     const zip = new JSZip();
     const selectedData = households.filter(h => selectedIds.includes(h.hhd_id));
-    const toastId = toast.loading(`Preparing ${selectedData.length} Cards...`);
+    const toastId = toast.loading(`Initializing ${selectedData.length} Cards...`);
 
     try {
       for (let i = 0; i < selectedData.length; i++) {
-        const currentData = selectedData[i];
-        setGeneratingId(currentData.hhd_id);
+        const household = selectedData[i];
         
-        // 🟢 PREVIEW UPDATE (For user visualization)
-        setPreviewId(currentData.hhd_id);
+        // 1. AUTO-PAGINATION LOGIC
+        const overallIndex = households.findIndex(h => h.hhd_id === household.hhd_id);
+        const targetPage = Math.floor(overallIndex / rowsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+
+        // 2. State update for Highlight & Preview
+        setGeneratingId(household.hhd_id);
+        setPreviewId(household.hhd_id);
         
-        toast.loading(`Processing: ${currentData.hhd_id} (${i + 1}/${selectedData.length})`, { id: toastId });
+        toast.loading(`Capturing: ${household.hhd_id} (${i + 1}/${selectedData.length})`, { id: toastId });
 
-        // ⏱️ Critical Wait: Wait for React to paint the screen with NEW data
-        await new Promise(r => setTimeout(r, 600)); 
+        // ⏱️ Essential Wait: Time for Page change + DOM Re-render
+        await new Promise(r => setTimeout(r, 800)); 
 
-        // 🟢 Capture from the Preview ID element
-        const cardElement = document.getElementById(`qr-card-render`);
+        const cardElement = document.getElementById(`qr-card-capture-area`);
         
         if (cardElement) {
           const canvas = await html2canvas(cardElement, { 
-            scale: 3, // High quality
+            scale: 3, // High Resolution for Printing
             useCORS: true,
-            backgroundColor: null,
-            logging: false,
-            // 🟢 Fix for cutting off text:
+            allowTaint: false,
+            backgroundColor: "#ffffff",
             width: 300, 
             height: 460,
-            onclone: (clonedDoc) => {
-                // Ensure the cloned element is visible and properly sized
-                const clonedCard = clonedDoc.getElementById('qr-card-render');
-                if(clonedCard) clonedCard.style.transform = "none";
-            }
+            logging: false
           });
           
           const imgData = canvas.toDataURL("image/png", 1.0).split(',')[1];
-          zip.file(`ID_${currentData.hhd_id}.png`, imgData, { base64: true });
+          zip.file(`ID_${household.hhd_id}.png`, imgData, { base64: true });
         }
       }
 
       const content = await zip.generateAsync({ type: "blob" });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `SAKSHAM_IDs_${tenantId}.zip`;
+      link.download = `SAKSHAM_QR_CARDS_${tenantId}.zip`;
       link.click();
-      toast.success("Download Successful! 🚀", { id: toastId });
+      toast.success("All Cards Downloaded! 🚀", { id: toastId });
     } catch (error) {
       console.error(error);
-      toast.error("Process failed!", { id: toastId });
+      toast.error("Process interrupted!", { id: toastId });
     } finally {
       setIsGenerating(false);
       setGeneratingId(null);
@@ -128,6 +125,7 @@ const BulkQRGenerator = () => {
     <CityLayout>
       <Toaster position="top-right" />
       <div className="p-4 space-y-6">
+        {/* Header Section */}
         <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-[35px] border border-slate-100 shadow-sm gap-4">
           <div className="flex items-center gap-4 text-left">
              <div className="w-14 h-14 bg-white rounded-xl p-1 border border-slate-100 flex items-center justify-center overflow-hidden">
@@ -145,37 +143,28 @@ const BulkQRGenerator = () => {
              </button>
              <button onClick={startGeneration} disabled={isGenerating || selectedIds.length === 0} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-xl disabled:opacity-30 active:scale-95">
                 {isGenerating ? <Loader2 className="animate-spin" size={16}/> : <Play size={16}/>}
-                {isGenerating ? 'CAPTURING...' : 'START DOWNLOAD'}
+                {isGenerating ? 'GENERATE ZIP...' : 'DOWNLOAD SELECTED'}
              </button>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* LIVE PREVIEW CARD (Animations Removed for Capture Stability) */}
           <div className="lg:col-span-4 flex flex-col items-center">
              <div className="sticky top-28 space-y-4">
-                <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Digital Card Preview</p>
+                <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Card Output Preview</p>
                 <div className="bg-slate-100 p-8 rounded-[55px] shadow-inner border-2 border-white overflow-hidden h-[540px] flex items-center justify-center relative">
-                    <AnimatePresence mode="wait">
-                        <motion.div 
-                            key={previewId} 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            transition={{ duration: 0.2 }} 
-                        >
-                           <div id="qr-card-render">
-                              <IDCard data={activeRowData} muniName={muniData.name} logo={muniData.logo} />
-                           </div>
-                        </motion.div>
-                    </AnimatePresence>
+                    <div id="qr-card-capture-area">
+                        <IDCard data={activeRowData} muniName={muniData.name} logo={muniData.logo} />
+                    </div>
                 </div>
              </div>
           </div>
 
+          {/* HOUSEHOLD TABLE WITH HIGHLIGHTING */}
           <div className="lg:col-span-8 bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-[620px]">
-             {/* Table code remains exactly as you had it */}
-             <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-               <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Registry Size: {households.length}</span>
+            <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+               <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Records Found: {households.length}</span>
                <div className="flex items-center gap-3">
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage} / {totalPages}</div>
                   <div className="flex gap-1">
@@ -198,6 +187,7 @@ const BulkQRGenerator = () => {
                   {currentRows.map((h) => {
                     const isGeneratingThis = generatingId === h.hhd_id;
                     const isSelected = selectedIds.includes(h.hhd_id);
+                    
                     return (
                         <tr 
                             key={h.hhd_id} 
@@ -206,7 +196,7 @@ const BulkQRGenerator = () => {
                                 setSelectedIds(prev => isSelected ? prev.filter(i => i !== h.hhd_id) : [...prev, h.hhd_id]);
                                 setPreviewId(h.hhd_id); 
                             }} 
-                            className={`transition-all duration-300 ${isGeneratingThis ? 'bg-emerald-500 text-white' : isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50/50'} cursor-pointer`}
+                            className={`transition-all duration-300 ${isGeneratingThis ? 'bg-emerald-600 text-white scale-[1.01] shadow-lg z-20 relative font-bold' : isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50/50'} cursor-pointer`}
                         >
                         <td className="p-5 text-center">
                             <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${isSelected ? (isGeneratingThis ? 'bg-white text-emerald-600' : 'bg-emerald-600 text-white') : 'border-slate-200'}`}>
@@ -214,7 +204,7 @@ const BulkQRGenerator = () => {
                             </div>
                         </td>
                         <td className="p-4">
-                            <p className={`font-black text-xs ${isGeneratingThis ? 'text-white' : 'text-slate-800'}`}>W-{h.ward_id || '--'}</p>
+                            <p className={`font-black text-xs ${isGeneratingThis ? 'text-white' : 'text-slate-800'}`}>W-{h.ward_no || h.ward_id || '--'}</p>
                             <p className={`text-[8px] font-bold uppercase ${isGeneratingThis ? 'text-emerald-100' : 'text-slate-400'}`}>{h.muni_house_no}</p>
                         </td>
                         <td className="p-4">
@@ -224,6 +214,7 @@ const BulkQRGenerator = () => {
                         <td className="p-4">
                             <div className="flex items-center gap-2">
                                 <span className={`px-2 py-1 rounded-md text-[9px] font-black ${isGeneratingThis ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{h.hhd_id}</span>
+                                {isGeneratingThis && <Loader2 size={12} className="animate-spin" />}
                             </div>
                         </td>
                         </tr>
@@ -239,20 +230,19 @@ const BulkQRGenerator = () => {
   );
 };
 
-// --- 🟢 ID CARD COMPONENT (Design Exactly Same with minor compatibility fixes) ---
+// --- 🟢 ID CARD COMPONENT (Design Exactly as Requested) ---
 const IDCard = ({ data, muniName, logo }) => (
   <div 
     style={{ 
         width: '300px', height: '460px', backgroundColor: '#ffffff', borderRadius: '40px', 
         overflow: 'hidden', display: 'flex', flexDirection: 'column', 
-        border: '4px solid #10b981', position: 'relative',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+        border: '4px solid #10b981', position: 'relative'
     }}
   >
-    {/* Top Header */}
+    {/* Dynamic Header */}
     <div style={{ height: '128px', background: 'linear-gradient(to bottom right, #059669, #34d399)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '10px' }}>
         <div style={{ backgroundColor: '#ffffff', padding: '4px', borderRadius: '12px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}>
-            <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+            <img src={logo} alt="L" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
         </div>
         <div style={{ textAlign: 'center', padding: '0 12px' }}>
             <h2 style={{ color: '#ffffff', fontWeight: '900', fontSize: '11px', textTransform: 'uppercase', marginBottom: '2px', lineHeight: '1.2' }}>{muniName}</h2>
@@ -270,7 +260,7 @@ const IDCard = ({ data, muniName, logo }) => (
       />
     </div>
 
-    {/* Details Area */}
+    {/* Content Area */}
     <div style={{ flex: '1', padding: '15px 25px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
           <div>
@@ -279,7 +269,7 @@ const IDCard = ({ data, muniName, logo }) => (
           </div>
           <div style={{ textAlign: 'right' }}>
              <p style={{ fontSize: '7px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase' }}>Ward No</p>
-             <p style={{ fontSize: '11px', fontWeight: '900', color: '#059669' }}>{data?.ward_id || '--'}</p>
+             <p style={{ fontSize: '11px', fontWeight: '900', color: '#059669' }}>{data?.ward_no || data?.ward_id || '--'}</p>
           </div>
        </div>
 
@@ -291,19 +281,15 @@ const IDCard = ({ data, muniName, logo }) => (
        </div>
 
        <div style={{ marginTop: 'auto' }}>
-          <p style={{ color: '#059669', fontSize: '7.5px', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
-            <MapPin size={8} style={{ display: 'inline' }}/> Household ID: {data?.hhd_id}
+          <p style={{ color: '#059669', fontSize: '8px', fontWeight: '900', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
+            <MapPin size={8} style={{ display: 'inline' }}/> ID: {data?.hhd_id}
           </p>
-          {/* 🟢 Address Compatibility Fix: height instead of LineClamp for html2canvas */}
-          <div style={{ height: '24px', overflow: 'hidden' }}>
-            <p style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', lineHeight: '1.2' }}>
-              {data?.full_address_en}
-            </p>
-          </div>
+          <p style={{ fontSize: '9px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', lineHeight: '1.2', height: '24px', overflow: 'hidden' }}>
+            {data?.full_address_en}
+          </p>
        </div>
     </div>
 
-    {/* Footer */}
     <div style={{ backgroundColor: '#f8fafc', padding: '10px 0', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
        <p style={{ fontSize: '7px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '2px' }}>Smart City Digitization • Saksham</p>
     </div>
