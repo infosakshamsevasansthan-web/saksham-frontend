@@ -13,7 +13,7 @@ const Loader = () => {
            - Continuous Rotation
         */}
         <motion.img 
-          src="/logo-ring.png" 
+          src="/logo.png" 
           alt="Ring"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1, rotate: 360 }}
