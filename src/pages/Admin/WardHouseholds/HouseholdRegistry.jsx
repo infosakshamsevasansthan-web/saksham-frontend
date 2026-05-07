@@ -27,7 +27,7 @@ const HouseholdRegistry = () => {
 
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(5); 
+    const [pageSize, setPageSize] = useState(5);
 
     const [formData, setFormData] = useState({
         hhd_id: '', ward_id: '', road_id: '', muni_house_no: '', mobile: '',
@@ -104,6 +104,7 @@ const HouseholdRegistry = () => {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            
             if(window.confirm(`${json.length} records found. Upload now?`)) {
                 axios.post(`${API_BASE}/api/admin/households/bulk-add`, { tenant_id: tenantId, data: json })
                 .then(() => { alert("Bulk Upload Success!"); fetchData(); })
@@ -148,27 +149,33 @@ const HouseholdRegistry = () => {
     return (
         <CityLayout>
             <div className="p-4 space-y-6 bg-slate-50/50 min-h-screen">
-                {/* Header Section */}
+                {/* 1. Header Section */}
                 <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-6 rounded-[35px] shadow-sm border border-slate-100 gap-4">
                     <div>
-                        <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Household Registry</h1>
+                        <h1 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">HOUSEHOLD REGISTRY</h1>
                         <p className="text-emerald-600 font-bold text-[10px] uppercase tracking-widest mt-1">Tenant Database Management System</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <button onClick={downloadTemplate} className="bg-amber-50 text-amber-600 px-4 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 border border-amber-100"><CloudDownload size={16}/> Template</button>
+                        <button onClick={downloadTemplate} className="bg-amber-50 text-amber-600 px-4 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-amber-100 border border-amber-100">
+                            <CloudDownload size={16}/> Template
+                        </button>
                         <div className="relative">
                             <input type="file" className="hidden" id="bulk" onChange={handleBulkUpload} accept=".xlsx,.xls"/>
-                            <label htmlFor="bulk" className="bg-blue-50 text-blue-600 px-4 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 cursor-pointer border border-blue-100"><Upload size={16}/> Bulk Upload</label>
+                            <label htmlFor="bulk" className="bg-blue-50 text-blue-600 px-4 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 cursor-pointer hover:bg-blue-100 border border-blue-100">
+                                <Upload size={16}/> Bulk Upload
+                            </label>
                         </div>
-                        <button onClick={() => { setEditMode(false); setFormData({}); setShowModal(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 shadow-lg shadow-slate-200"><Plus size={16}/> Add Manual</button>
+                        <button onClick={() => { setEditMode(false); setFormData({}); setShowModal(true); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-200">
+                            <Plus size={16}/> Add Manual
+                        </button>
                     </div>
                 </header>
 
-                {/* Controls Section */}
+                {/* 2. Controls Section */}
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1 bg-white p-2 rounded-[25px] shadow-sm border border-slate-100 flex items-center">
                         <Search className="ml-4 text-slate-300" size={20}/>
-                        <input type="text" placeholder="Search residents..." className="w-full p-4 font-bold text-slate-600 outline-none bg-transparent" onChange={(e)=>{setSearchTerm(e.target.value); setCurrentPage(1);}} />
+                        <input type="text" placeholder="Search by HHD ID, Owner Name..." className="w-full p-4 font-bold text-slate-600 outline-none bg-transparent" onChange={(e)=>{setSearchTerm(e.target.value); setCurrentPage(1);}} />
                     </div>
                     <div className="bg-white px-4 rounded-[25px] shadow-sm border border-slate-100 flex gap-2 items-center">
                         <button onClick={exportToExcel} className="p-3 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"><FileSpreadsheet size={20}/></button>
@@ -176,7 +183,7 @@ const HouseholdRegistry = () => {
                     </div>
                 </div>
 
-                {/* Data Table */}
+                {/* 3. Data Table (Home Icon Restore kiya) */}
                 <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
@@ -189,33 +196,69 @@ const HouseholdRegistry = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50 font-bold text-slate-600">
-                                {currentItems.map((item) => (
+                                {loading ? (
+                                    <tr><td colSpan="4" className="p-20 text-center animate-pulse text-slate-300">Fetching Records...</td></tr>
+                                ) : currentItems.length > 0 ? currentItems.map((item) => (
                                     <tr key={item.hhd_id} className="hover:bg-slate-50/50 transition-all group">
                                         <td className="p-6">
-                                            <p className="text-slate-900 font-black tracking-tight">{item.owner_name_en}</p>
-                                            <p className="text-[10px] text-slate-400 uppercase">{item.hhd_id}</p>
+                                            <div className="flex items-center gap-4">
+                                                <div className="bg-slate-100 p-3 rounded-2xl text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                                                    <Home size={20}/>
+                                                </div>
+                                                <div>
+                                                    <p className="text-slate-900 font-black tracking-tight">{item.owner_name_en}</p>
+                                                    <p className="text-[10px] text-slate-400 font-hindi">{item.owner_name_hi}</p>
+                                                    <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded-md mt-1 inline-block uppercase">{item.hhd_id}</span>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="text-xs">Ward {item.ward_no} • {item.road_name_en}</td>
-                                        <td className="text-xs tracking-widest">{item.mobile}</td>
+                                        <td className="text-xs">
+                                            <div className="flex items-center gap-1 text-slate-700"><MapPin size={12}/> Ward {item.ward_no}</div>
+                                            <p className="text-[10px] text-slate-400 mt-0.5">{item.road_name_en || 'Main Road'}</p>
+                                            <p className="text-[10px] text-emerald-600">House: {item.muni_house_no}</p>
+                                        </td>
+                                        <td className="text-xs tracking-widest text-slate-500 font-black">{item.mobile}</td>
                                         <td className="p-6 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleEdit(item)} className="p-3 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-2xl transition-all"><Edit3 size={16}/></button>
-                                                <button onClick={() => handleDelete(item.hhd_id)} className="p-3 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-2xl transition-all"><Trash2 size={16}/></button>
+                                                <button onClick={() => handleEdit(item)} className="p-3 bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white rounded-2xl transition-all shadow-sm"><Edit3 size={16}/></button>
+                                                <button onClick={() => handleDelete(item.hhd_id)} className="p-3 bg-red-50 text-red-400 hover:bg-red-500 hover:text-white rounded-2xl transition-all shadow-sm"><Trash2 size={16}/></button>
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr><td colSpan="4" className="p-20 text-center text-slate-300 uppercase tracking-widest">No matching records found</td></tr>
+                                )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* 4. Pagination Section */}
+                    <div className="bg-slate-50/50 p-6 flex flex-col md:flex-row justify-between items-center gap-4 border-t border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rows:</p>
+                            <select 
+                                className="bg-white border border-slate-200 rounded-xl px-3 py-1 font-bold text-xs outline-none"
+                                value={pageSize}
+                                onChange={(e) => {setPageSize(Number(e.target.value)); setCurrentPage(1);}}
+                            >
+                                {[5, 10, 20, 50].map(val => <option key={val} value={val}>{val}</option>)}
+                            </select>
+                            <p className="text-[10px] font-bold text-slate-400">Total: {filteredData.length}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-2 bg-white rounded-xl border border-slate-200 disabled:opacity-30"><ChevronLeft size={18}/></button>
+                            <span className="px-4 text-xs font-black">Page {currentPage} of {totalPages || 1}</span>
+                            <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-2 bg-white rounded-xl border border-slate-200 disabled:opacity-30"><ChevronRight size={18}/></button>
+                        </div>
                     </div>
                 </div>
 
                 {/* ============================================================
-                    NEW UPDATED MODAL: FIXED POSITION & HIGH Z-INDEX
+                    FIXED & RESIZED MODAL FORM (TOPBAR SE UPAR)
                    ============================================================ */}
                 {showModal && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-[99999]">
-                        <div className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-white/20">
+                        <div className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-white/20 relative">
                             
                             {/* Modal Header */}
                             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -225,12 +268,12 @@ const HouseholdRegistry = () => {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-black text-slate-800 tracking-tighter uppercase">
-                                            {editMode ? 'Update Resident Profile' : 'New Registry Entry'}
+                                            {editMode ? 'Update Resident Profile' : 'New Manual Entry'}
                                         </h2>
-                                        <p className="text-emerald-600 font-bold text-[9px] uppercase tracking-widest">Saksham Master Engine • {tenantId}</p>
+                                        <p className="text-emerald-600 font-bold text-[9px] uppercase tracking-widest">Master City Registry • {tenantId}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setShowModal(false)} className="p-3 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100">
+                                <button onClick={() => setShowModal(false)} className="bg-white p-2 rounded-xl shadow-sm hover:text-red-500 transition-all border border-slate-100">
                                     <X size={24}/>
                                 </button>
                             </div>
@@ -238,32 +281,32 @@ const HouseholdRegistry = () => {
                             {/* Form Area - Scrollable */}
                             <form onSubmit={handleSubmit} className="p-8 overflow-y-auto space-y-8 bg-white">
                                 
-                                {/* 1. Location Details Row */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* A. Section: Geographic Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><MapPin size={10}/> Ward Number</label>
-                                        <select required className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none transition-all" value={formData.ward_id} onChange={(e) => { setFormData({...formData, ward_id: e.target.value}); fetchRoads(e.target.value); }}>
+                                        <select required className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 focus:bg-white outline-none transition-all" value={formData.ward_id} onChange={(e) => { setFormData({...formData, ward_id: e.target.value}); fetchRoads(e.target.value); }}>
                                             <option value="">Select Ward</option>
                                             {wards.map(w => <option key={w.id} value={w.id}>Ward {w.ward_no}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Navigation size={10}/> Road Name</label>
-                                        <select required className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none transition-all" value={formData.road_id} onChange={(e) => setFormData({...formData, road_id: e.target.value})}>
+                                        <select required className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 focus:bg-white outline-none transition-all" value={formData.road_id} onChange={(e) => setFormData({...formData, road_id: e.target.value})}>
                                             <option value="">Select Road</option>
                                             {roads.map(r => <option key={r.id} value={r.id}>{r.road_name_en}</option>)}
                                         </select>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Hash size={10}/> House No</label>
-                                        <input type="text" required placeholder="Ex: 131/125" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none transition-all" value={formData.muni_house_no} onChange={(e)=>setFormData({...formData, muni_house_no: e.target.value})} />
+                                        <input type="text" required placeholder="Ex: 131/125" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 focus:bg-white outline-none transition-all" value={formData.muni_house_no} onChange={(e)=>setFormData({...formData, muni_house_no: e.target.value})} />
                                     </div>
                                 </div>
 
-                                {/* 2. Names Section (English/Hindi Grouped) */}
+                                {/* B. Section: Resident Profiling (Emerald Box) */}
                                 <div className="p-8 rounded-[35px] bg-emerald-50/30 border border-emerald-100/50 space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        {/* Owner Names */}
+                                        {/* Owner Info */}
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><User size={10}/> Owner (English)</label>
@@ -274,7 +317,7 @@ const HouseholdRegistry = () => {
                                                 <input type="text" className="w-full bg-white p-4 rounded-2xl font-bold font-hindi border-2 border-emerald-100 focus:border-emerald-500 outline-none transition-all" value={formData.owner_name_hi} onChange={(e)=>setFormData({...formData, owner_name_hi: e.target.value})} />
                                             </div>
                                         </div>
-                                        {/* Guardian Names */}
+                                        {/* Guardian Info */}
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><User size={10}/> Guardian (English)</label>
@@ -288,7 +331,7 @@ const HouseholdRegistry = () => {
                                     </div>
                                 </div>
 
-                                {/* 3. Contact & Address */}
+                                {/* C. Section: Contact & Physical Address */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Phone size={10}/> Mobile Number</label>
@@ -296,14 +339,14 @@ const HouseholdRegistry = () => {
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 ml-2 uppercase flex items-center gap-1"><Navigation size={10}/> Physical Address (English)</label>
-                                        <input type="text" placeholder="House Location Detail" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none transition-all" value={formData.full_address_en} onChange={(e)=>setFormData({...formData, full_address_en: e.target.value})} onBlur={(e)=>translate(e.target.value, 'full_address_hi')} />
+                                        <input type="text" placeholder="Detailed Address" className="w-full bg-slate-50 p-4 rounded-2xl font-bold border-2 border-transparent focus:border-emerald-500 outline-none transition-all" value={formData.full_address_en} onChange={(e)=>setFormData({...formData, full_address_en: e.target.value})} onBlur={(e)=>translate(e.target.value, 'full_address_hi')} />
                                     </div>
                                 </div>
 
                                 {/* Submit Button */}
-                                <div className="pt-4">
-                                    <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs hover:bg-emerald-600 transition-all flex justify-center items-center gap-3 shadow-xl shadow-slate-200">
-                                        <Save size={18}/> {editMode ? 'Confirm Database Sync' : 'Register Into System'}
+                                <div className="pt-2">
+                                    <button type="submit" className="w-full bg-slate-900 text-white p-6 rounded-[30px] font-black uppercase tracking-[0.2em] text-xs hover:bg-emerald-600 transition-all flex justify-center items-center gap-3 shadow-xl shadow-slate-200">
+                                        <Save size={20}/> {editMode ? 'Update Database Record' : 'Save To Registry'}
                                     </button>
                                 </div>
                             </form>
