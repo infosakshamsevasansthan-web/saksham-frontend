@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
-import { Plus, Truck, Search, MoreVertical, Loader2, X, Save, Signal, Fuel, User, CheckCircle } from 'lucide-react';
+import { Plus, Truck, Search, MoreVertical, Loader2, X, Save, Signal, Fuel, User, CheckCircle, Weight, Zap } from 'lucide-react';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
@@ -12,6 +12,16 @@ const VehicleInventory = () => {
     const [showFuelModal, setShowFuelModal] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const tenantId = localStorage.getItem('tenantId');
+
+    // --- Add Vehicle Form State ---
+    const [vehicleFormData, setVehicleFormData] = useState({
+        vehicle_no: '',
+        vehicle_type: 'Tipper',
+        load_capacity_tons: '',
+        fuel_type: 'Diesel',
+        gps_device_id: '',
+        status: 'active'
+    });
 
     // Fuel Form States
     const [fuelData, setFuelData] = useState({ qty: '', driver: '', driverId: '', helper: '', helperId: '' });
@@ -29,7 +39,7 @@ const VehicleInventory = () => {
 
     useEffect(() => { fetchVehicles(); }, []);
 
-    // 🟢 Generate 3 Alpha + 3 Numeric Coupon
+    // 🟢 Generate Coupon
     const generateCoupon = () => {
         const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const nums = "0123456789";
@@ -39,13 +49,30 @@ const VehicleInventory = () => {
         setCouponCode(res);
     };
 
-    // 🟢 Staff Search Logic
+    // 🟢 Staff Search
     const searchStaff = async (val, type) => {
         if (val.length < 1) return setStaffResults({ ...staffResults, [type]: [] });
         try {
             const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/staff-search/${tenantId}?q=${val}`);
             setStaffResults({ ...staffResults, [type]: res.data.data });
         } catch (err) { console.error(err); }
+    };
+
+    // 🟢 Submit New Vehicle
+    const handleVehicleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post('https://saksham-backend-9719.onrender.com/api/admin/vehicles/add', {
+                ...vehicleFormData,
+                tenant_id: tenantId
+            });
+            if (res.data.success) {
+                toast.success("Vehicle Added Successfully! 🚛");
+                setShowModal(false);
+                fetchVehicles();
+                setVehicleFormData({ vehicle_no: '', vehicle_type: 'Tipper', load_capacity_tons: '', fuel_type: 'Diesel', gps_device_id: '', status: 'active' });
+            }
+        } catch (err) { toast.error("Failed to add vehicle"); }
     };
 
     const handleFuelSubmit = async (e) => {
@@ -134,6 +161,77 @@ const VehicleInventory = () => {
                 </div>
             </div>
 
+            {/* --- ADD VEHICLE MODAL --- */}
+            <AnimatePresence>
+                {showModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100">
+                            <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Add New Asset</h2>
+                                    <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Register vehicle to fleet</p>
+                                </div>
+                                <button onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all">
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleVehicleSubmit} className="p-8 space-y-6">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Vehicle Plate Number</label>
+                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
+                                            <Truck size={18} className="text-slate-400" />
+                                            <input required className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 uppercase" placeholder="e.g. BR01-1234" value={vehicleFormData.vehicle_no} onChange={(e) => setVehicleFormData({...vehicleFormData, vehicle_no: e.target.value})} />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Vehicle Type</label>
+                                        <select className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700" value={vehicleFormData.vehicle_type} onChange={(e) => setVehicleFormData({...vehicleFormData, vehicle_type: e.target.value})}>
+                                            <option>Tipper</option>
+                                            <option>Refuse Compactor</option>
+                                            <option>Dumper Placer</option>
+                                            <option>Cesspool Emptier</option>
+                                            <option>Sweeping Machine</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Load Capacity (Tons)</label>
+                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
+                                            <Weight size={18} className="text-slate-400" />
+                                            <input required type="number" step="0.1" className="w-full p-4 bg-transparent outline-none font-bold text-slate-700" placeholder="0.0" value={vehicleFormData.load_capacity_tons} onChange={(e) => setVehicleFormData({...vehicleFormData, load_capacity_tons: e.target.value})} />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Type</label>
+                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
+                                            <Zap size={18} className="text-slate-400" />
+                                            <select className="w-full p-4 bg-transparent outline-none font-bold text-slate-700" value={vehicleFormData.fuel_type} onChange={(e) => setVehicleFormData({...vehicleFormData, fuel_type: e.target.value})}>
+                                                <option>Diesel</option>
+                                                <option>CNG</option>
+                                                <option>Petrol</option>
+                                                <option>Electric</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2 space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">GPS Device ID (Optional)</label>
+                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
+                                            <Signal size={18} className="text-slate-400" />
+                                            <input className="w-full p-4 bg-transparent outline-none font-bold text-slate-700" placeholder="Enter GPS Serial Number" value={vehicleFormData.gps_device_id} onChange={(e) => setVehicleFormData({...vehicleFormData, gps_device_id: e.target.value})} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="w-full bg-slate-900 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all shadow-xl flex items-center justify-center gap-3">
+                                    <Save size={20}/> Register Vehicle to System
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* --- FUEL COUPON MODAL --- */}
             <AnimatePresence>
                 {showFuelModal && (
@@ -148,7 +246,6 @@ const VehicleInventory = () => {
                             </div>
 
                             <form onSubmit={handleFuelSubmit} className="p-8 space-y-6">
-                                {/* Coupon Display */}
                                 <div className="bg-emerald-50 p-4 rounded-3xl border-2 border-dashed border-emerald-200 text-center">
                                     <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Generated Coupon Code</p>
                                     <p className="text-3xl font-black text-slate-800 tracking-[0.3em]">{couponCode}</p>
@@ -160,7 +257,6 @@ const VehicleInventory = () => {
                                         <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white transition-all" placeholder="Enter quantity" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
                                     </div>
 
-                                    {/* DRIVER SEARCH */}
                                     <div className="relative space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Driver Name / ID</label>
                                         <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4 focus-within:bg-white transition-all">
@@ -179,7 +275,6 @@ const VehicleInventory = () => {
                                         )}
                                     </div>
 
-                                    {/* HELPER SEARCH */}
                                     <div className="relative space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Helper Name / ID</label>
                                         <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4 focus-within:bg-white transition-all">
@@ -207,8 +302,6 @@ const VehicleInventory = () => {
                     </div>
                 )}
             </AnimatePresence>
-
-            {/* (Keep your Existing Vehicle Add Modal here...) */}
         </CityLayout>
     );
 };
