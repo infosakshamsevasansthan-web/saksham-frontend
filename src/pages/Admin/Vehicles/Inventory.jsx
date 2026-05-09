@@ -3,32 +3,29 @@ import React, { useState, useEffect } from 'react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import { 
     Plus, Truck, Search, MoreVertical, Loader2, X, Save, Signal, Fuel, 
-    User, CheckCircle, Weight, Zap, MapPin, Layers, UserPlus, QrCode, ChevronRight 
+    User, CheckCircle, UserPlus, Layers, MapPin, QrCode 
 } from 'lucide-react';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
-import QRCode from "react-qr-code"; // Isko install kar lena bhai: npm install react-qr-code
+import QRCode from "react-qr-code"; // npm install react-qr-code
 
 const VehicleInventory = () => {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [showFuelModal, setShowFuelModal] = useState(false);
-    const [showStaffModal, setShowStaffModal] = useState(false); // Naya Staff Modal
+    const [showStaffModal, setShowStaffModal] = useState(false); // Naya modal state
     const [selectedVehicle, setSelectedVehicle] = useState(null);
-    const tenantId = localStorage.getItem('tenantId') || "SAK-SIW-6925";
+    const tenantId = localStorage.getItem('tenantId');
 
-    // --- Add Vehicle Form States ---
+    // Add Vehicle Form States
     const [isCustomType, setIsCustomType] = useState(false);
     const [vehicleFormData, setVehicleFormData] = useState({
-        vehicle_no: '', vehicle_type: 'Tipper', custom_type: '',
-        load_capacity_tons: '', fuel_type: 'Diesel', gps_device_id: '', status: 'active'
+        vehicle_no: '', vehicle_type: 'Tipper', custom_type: '', load_capacity_tons: '', fuel_type: 'Diesel', gps_device_id: '', status: 'active'
     });
 
-    // --- Staff Assignment States (New) ---
-    const [staffFormData, setStaffFormData] = useState({
-        circle: '', ward: '', driverName: '', driverId: '', helperName: '', helperId: ''
-    });
+    // Staff Assignment States
+    const [staffFormData, setStaffFormData] = useState({ circle: '', ward: '', driverName: '', driverId: '', helperName: '', helperId: '' });
 
     // Fuel Form States
     const [fuelData, setFuelData] = useState({ qty: '', driver: '', driverId: '', helper: '', helperId: '' });
@@ -46,7 +43,17 @@ const VehicleInventory = () => {
 
     useEffect(() => { fetchVehicles(); }, []);
 
-    // 🟢 Staff Search Logic (Filtered for Driver and Helper)
+    // 🟢 Generate Coupon
+    const generateCoupon = () => {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const nums = "0123456789";
+        let res = "";
+        for (let i = 0; i < 3; i++) res += letters.charAt(Math.floor(Math.random() * letters.length));
+        for (let i = 0; i < 3; i++) res += nums.charAt(Math.floor(Math.random() * nums.length));
+        setCouponCode(res);
+    };
+
+    // 🟢 Staff Search (Filtered for Driver/Helper)
     const searchStaff = async (val, type) => {
         if (val.length < 1) return setStaffResults({ ...staffResults, [type]: [] });
         try {
@@ -76,33 +83,28 @@ const VehicleInventory = () => {
         } catch (err) { toast.error("Error adding vehicle"); }
     };
 
-    // 🟢 Staff Assign Submit
-    const handleAssignStaffSubmit = async (e) => {
+    // 🟢 Assign Staff Submit
+    const handleStaffSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/vehicles/assign-crew', {
+            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/vehicles/assign-staff', {
                 ...staffFormData, vehicle_id: selectedVehicle.id, tenant_id: tenantId
             });
-            toast.success("Crew Assigned Successfully! 👥");
+            toast.success("Staff Assigned! 👥");
             setShowStaffModal(false);
-        } catch (err) { toast.error("Assignment failed"); }
-    };
-
-    const generateCoupon = () => {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const nums = "0123456789";
-        let res = "";
-        for (let i = 0; i < 3; i++) res += letters.charAt(Math.floor(Math.random() * letters.length));
-        for (let i = 0; i < 3; i++) res += nums.charAt(Math.floor(Math.random() * nums.length));
-        setCouponCode(res);
+        } catch (err) { toast.error("Error assigning staff"); }
     };
 
     const handleFuelSubmit = async (e) => {
         e.preventDefault();
         try {
             const res = await axios.post('https://saksham-backend-9719.onrender.com/api/admin/fuel/generate', {
-                tenant_id: tenantId, vehicle_id: selectedVehicle.id, driver_id: fuelData.driverId,
-                helper_id: fuelData.helperId, fuel_qty: fuelData.qty, coupon_code: couponCode
+                tenant_id: tenantId,
+                vehicle_id: selectedVehicle.id,
+                driver_id: fuelData.driverId,
+                helper_id: fuelData.helperId,
+                fuel_qty: fuelData.qty,
+                coupon_code: couponCode
             });
             if (res.data.success) {
                 toast.success(`Coupon Generated: ${couponCode}`, { duration: 6000 });
@@ -164,16 +166,16 @@ const VehicleInventory = () => {
                                         <div className="flex justify-center gap-2">
                                             <button 
                                                 onClick={() => { setSelectedVehicle(v); generateCoupon(); setShowFuelModal(true); }}
-                                                className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all"
+                                                className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
                                                 title="Fuel Coupon"
                                             >
                                                 <Fuel size={18}/>
                                             </button>
-                                            {/* Staff Assign Button */}
+                                            {/* Staff Assign Button (New) */}
                                             <button 
                                                 onClick={() => { setSelectedVehicle(v); setShowStaffModal(true); }}
-                                                className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
-                                                title="Assign Staff"
+                                                className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                title="Assign Crew"
                                             >
                                                 <UserPlus size={18}/>
                                             </button>
@@ -187,41 +189,38 @@ const VehicleInventory = () => {
                 </div>
             </div>
 
-            {/* --- FUEL COUPON MODAL (RESORED + QR ADDED) --- */}
+            {/* --- FUEL COUPON MODAL (QR ADDED) --- */}
             <AnimatePresence>
                 {showFuelModal && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col md:flex-row">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col md:flex-row">
                             
-                            {/* Left: Digital Slip/QR Side */}
+                            {/* QR & Coupon Side */}
                             <div className="md:w-1/3 bg-slate-900 p-8 flex flex-col items-center justify-center text-center text-white">
-                                <QrCode size={40} className="text-emerald-400 mb-4" />
-                                <h2 className="text-xl font-black uppercase italic leading-none mb-6 tracking-tighter">Digital Fuel Slip</h2>
-                                
-                                <div className="bg-white p-4 rounded-3xl mb-6 shadow-2xl shadow-emerald-500/20">
-                                    {/* Secure QR Content: Coupon, Vehicle No and Quantity */}
+                                <QrCode size={40} className="text-emerald-400 mb-6" />
+                                <div className="bg-white p-3 rounded-2xl mb-6 shadow-xl shadow-emerald-500/20">
                                     <QRCode 
-                                        size={180}
-                                        value={`COUPON:${couponCode}|VHL:${selectedVehicle?.vehicle_no}|QTY:${fuelData.qty || 0}|TENANT:${tenantId}`}
+                                        size={140}
+                                        value={`COUPON:${couponCode}|QTY:${fuelData.qty || '0'}|VHL:${selectedVehicle?.vehicle_no}`}
                                         viewBox={`0 0 256 256`}
                                         style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                                     />
                                 </div>
-                                <p className="text-3xl font-black text-emerald-400 tracking-[0.2em]">{couponCode}</p>
+                                <p className="text-2xl font-black text-emerald-400 tracking-[0.2em]">{couponCode}</p>
                                 <p className="text-[10px] font-bold text-white/40 uppercase mt-2">{selectedVehicle?.vehicle_no}</p>
                             </div>
 
-                            {/* Right: Allocation Form Side */}
+                            {/* Form Side */}
                             <form onSubmit={handleFuelSubmit} className="flex-1 p-8 space-y-6">
                                 <div className="flex justify-between items-center">
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Fuel Allocation</h2>
-                                    <button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">X</button>
+                                    <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Fuel Allocation</h2>
+                                    <button onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">X</button>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Quantity (Liters)</label>
-                                        <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white" placeholder="Enter quantity" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
+                                        <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white transition-all" placeholder="Enter quantity" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
                                     </div>
 
                                     <div className="relative space-y-1">
@@ -231,11 +230,11 @@ const VehicleInventory = () => {
                                             <input required value={fuelData.driver} className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Search Driver" onChange={(e) => { setFuelData({...fuelData, driver: e.target.value}); searchStaff(e.target.value, 'drivers'); }} />
                                         </div>
                                         {staffResults.drivers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2">
+                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden">
                                                 {staffResults.drivers.map(s => (
-                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, driver: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4">
+                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, driver: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 flex justify-between items-center px-4">
                                                         <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black uppercase">ID: {s.id}</span>
+                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-black uppercase">ID: {s.id}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -249,11 +248,11 @@ const VehicleInventory = () => {
                                             <input value={fuelData.helper} className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Search Helper" onChange={(e) => { setFuelData({...fuelData, helper: e.target.value}); searchStaff(e.target.value, 'helpers'); }} />
                                         </div>
                                         {staffResults.helpers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2">
+                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden">
                                                 {staffResults.helpers.map(s => (
-                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, helper: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4">
+                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, helper: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 flex justify-between items-center px-4">
                                                         <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black uppercase">ID: {s.id}</span>
+                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-black uppercase">ID: {s.id}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -262,7 +261,7 @@ const VehicleInventory = () => {
                                 </div>
 
                                 <button type="submit" className="w-full bg-slate-900 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all shadow-xl flex items-center justify-center gap-3">
-                                    <CheckCircle size={20}/> Issue Coupon & Notify Pump
+                                    <CheckCircle size={20}/> Authorize Coupon
                                 </button>
                             </form>
                         </motion.div>
@@ -278,64 +277,38 @@ const VehicleInventory = () => {
                             <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
                                 <div>
                                     <h2 className="text-xl font-black text-slate-800 uppercase italic">Assign Crew</h2>
-                                    <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Gaadi: {selectedVehicle?.vehicle_no} ({selectedVehicle?.vehicle_type})</p>
+                                    <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Gaadi: {selectedVehicle?.vehicle_no}</p>
                                 </div>
                                 <button onClick={() => setShowStaffModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">X</button>
                             </div>
 
-                            <form onSubmit={handleAssignStaffSubmit} className="p-8 space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
+                            <form onSubmit={handleStaffSubmit} className="p-8 space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-1"><Layers size={12}/> Circle</label>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><Layers size={12}/> Region / Circle</label>
                                         <select required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" onChange={(e) => setStaffFormData({...staffFormData, circle: e.target.value})}>
                                             <option value="">Select Circle</option>
-                                            <option>Circle 01</option><option>Circle 02</option>
+                                            <option>Circle 01</option> <option>Circle 02</option>
                                         </select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-1"><MapPin size={12}/> Ward</label>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><MapPin size={12}/> Ward Number</label>
                                         <select required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" onChange={(e) => setStaffFormData({...staffFormData, ward: e.target.value})}>
                                             <option value="">Select Ward</option>
-                                            {[...Array(20)].map((_, i) => <option key={i}>Ward {i+1}</option>)}
+                                            {[...Array(30)].map((_, i) => <option key={i}>Ward {i+1}</option>)}
                                         </select>
                                     </div>
 
-                                    {/* Driver Real-time Search */}
+                                    {/* Driver Search (Filtered) */}
                                     <div className="col-span-2 relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-1"><User size={12}/> Primary Driver (Search Name)</label>
-                                        <input 
-                                            required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" 
-                                            placeholder="Type name to search..." 
-                                            value={staffFormData.driverName}
-                                            onChange={(e) => { setStaffFormData({...staffFormData, driverName: e.target.value}); searchStaff(e.target.value, 'drivers'); }}
-                                        />
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><User size={12}/> Primary Driver (Search Name)</label>
+                                        <input required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" placeholder="Type to search drivers..." onChange={(e) => { setStaffFormData({...staffFormData, driverName: e.target.value}); searchStaff(e.target.value, 'drivers'); }} />
                                         {staffResults.drivers.length > 0 && (
                                             <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2">
                                                 {staffResults.drivers.map(s => (
                                                     <div key={s.id} onClick={() => { setStaffFormData({...staffFormData, driverName: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4">
                                                         <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black">DRIVER ID: {s.id}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Helper Real-time Search */}
-                                    <div className="col-span-2 relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-1"><User size={12}/> Assistant Helper</label>
-                                        <input 
-                                            className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" 
-                                            placeholder="Type name to search..." 
-                                            value={staffFormData.helperName}
-                                            onChange={(e) => { setStaffFormData({...staffFormData, helperName: e.target.value}); searchStaff(e.target.value, 'helpers'); }}
-                                        />
-                                        {staffResults.helpers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2">
-                                                {staffResults.helpers.map(s => (
-                                                    <div key={s.id} onClick={() => { setStaffFormData({...staffFormData, helperName: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4">
-                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black">{s.post || 'STAFF'}</span>
+                                                        <span className="text-[9px] bg-slate-100 px-2 py-1 rounded font-black uppercase">DRIVER ID: {s.id}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -344,7 +317,7 @@ const VehicleInventory = () => {
                                 </div>
 
                                 <button type="submit" className="w-full bg-slate-900 hover:bg-blue-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all shadow-xl flex items-center justify-center gap-3">
-                                    <Save size={20}/> Confirm Assignment <ChevronRight size={16}/>
+                                    <Save size={20}/> Confirm Assignment
                                 </button>
                             </form>
                         </motion.div>
@@ -352,63 +325,59 @@ const VehicleInventory = () => {
                 )}
             </AnimatePresence>
 
-            {/* --- ADD VEHICLE MODAL (DYNAMIC TYPE ADDED) --- */}
+            {/* --- ADD VEHICLE MODAL (DYNAMIC TYPE) --- */}
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100">
                             <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
                                 <div>
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Add New Asset</h2>
+                                    <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Add New Asset</h2>
                                     <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Register vehicle to fleet</p>
                                 </div>
-                                <button onClick={() => setShowModal(false)} className="w-10 h-10 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"><X size={20}/></button>
+                                <button onClick={() => setShowModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">X</button>
                             </div>
 
                             <form onSubmit={handleVehicleSubmit} className="p-8 space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Registration Number</label>
-                                        <input required className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold uppercase" placeholder="e.g. BR01-1234" onChange={(e) => setVehicleFormData({...vehicleFormData, vehicle_no: e.target.value})} />
+                                        <input required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold uppercase bg-slate-50" placeholder="e.g. BR01-1234" onChange={(e) => setVehicleFormData({...vehicleFormData, vehicle_no: e.target.value})} />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Vehicle Type</label>
-                                        <select 
-                                            className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold"
-                                            onChange={(e) => {
-                                                if(e.target.value === "Other") setIsCustomType(true);
-                                                else { setIsCustomType(false); setVehicleFormData({...vehicleFormData, vehicle_type: e.target.value}); }
-                                            }}
-                                        >
-                                            <option>Tipper</option><option>Refuse Compactor</option><option>Dumper Placer</option><option value="Other">+ Other (Custom)</option>
+                                        <select className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" onChange={(e) => {
+                                            if(e.target.value === "Other") setIsCustomType(true);
+                                            else { setIsCustomType(false); setVehicleFormData({...vehicleFormData, vehicle_type: e.target.value}); }
+                                        }}>
+                                            <option>Tipper</option><option>Refuse Compactor</option><option>Dumper Placer</option><option value="Other">+ Other (Add Custom)</option>
                                         </select>
                                     </div>
 
                                     {isCustomType && (
                                         <div className="col-span-2 space-y-1">
                                             <label className="text-[9px] font-black text-emerald-600 uppercase ml-2">Enter Custom Vehicle Type</label>
-                                            <input required className="w-full p-4 bg-emerald-50 rounded-2xl border border-emerald-200 font-bold" placeholder="e.g. J.C.B or Mini Truck" onChange={(e) => setVehicleFormData({...vehicleFormData, custom_type: e.target.value})} />
+                                            <input required className="w-full p-4 rounded-2xl border border-emerald-200 outline-none font-bold bg-emerald-50" placeholder="Type here..." onChange={(e) => setVehicleFormData({...vehicleFormData, custom_type: e.target.value})} />
                                         </div>
                                     )}
 
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Load Capacity (Tons)</label>
-                                        <input required type="number" step="0.1" className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold" placeholder="0.0" onChange={(e) => setVehicleFormData({...vehicleFormData, load_capacity_tons: e.target.value})} />
+                                        <input required type="number" step="0.1" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" placeholder="0.0" onChange={(e) => setVehicleFormData({...vehicleFormData, load_capacity_tons: e.target.value})} />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Type</label>
-                                        <select className="w-full p-4 bg-slate-50 rounded-2xl border border-slate-200 font-bold" onChange={(e) => setVehicleFormData({...vehicleFormData, fuel_type: e.target.value})}>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Engine Type</label>
+                                        <select className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" onChange={(e) => setVehicleFormData({...vehicleFormData, fuel_type: e.target.value})}>
                                             <option>Diesel</option><option>CNG</option><option>Petrol</option><option>Electric</option>
                                         </select>
                                     </div>
                                 </div>
-                                <button type="submit" className="w-full bg-slate-900 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all">Register Vehicle</button>
+                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl">Register Vehicle Asset</button>
                             </form>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
-
         </CityLayout>
     );
 };
