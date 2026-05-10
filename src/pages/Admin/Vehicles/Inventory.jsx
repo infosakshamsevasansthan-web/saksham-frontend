@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
-import QRCode from "react-qr-code";
+// Yahan fix kiya hai: qrcode.react use karenge jo aapke package.json mein hai
+import { QRCodeSVG } from 'qrcode.react'; 
 
 const VehicleInventory = () => {
     const [vehicles, setVehicles] = useState([]);
@@ -108,7 +109,6 @@ const VehicleInventory = () => {
                         <h1 className="text-2xl font-black text-slate-800 uppercase italic">Vehicle Inventory</h1>
                         <p className="text-emerald-600 font-bold text-[9px] uppercase tracking-[0.3em]">Fleet Asset Database</p>
                     </div>
-                    {/* Add Vehicle Button - Emerald Green Styling */}
                     <button 
                         onClick={() => {
                             console.log("Opening Add Modal..."); 
@@ -173,7 +173,7 @@ const VehicleInventory = () => {
                 </div>
             </div>
 
-            {/* --- ADD VEHICLE MODAL (ABSOLUTE TOP Z-INDEX) --- */}
+            {/* --- ADD VEHICLE MODAL --- */}
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
@@ -233,11 +233,17 @@ const VehicleInventory = () => {
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row">
                             <div className="md:w-1/3 bg-slate-900 p-8 flex flex-col items-center justify-center text-white">
                                 <QrCode size={40} className="text-emerald-400 mb-4" />
-                                <QRCode size={150} value={`COUPON:${couponCode}`} viewBox={`0 0 256 256`} style={{ height: "auto", maxWidth: "100%", width: "100%" }} className="bg-white p-2 rounded-2xl" />
+                                {/* Yahan fix kiya hai: QRCodeSVG use karke */}
+                                <div className="bg-white p-2 rounded-2xl">
+                                    <QRCodeSVG value={couponCode || "EMPTY"} size={150} />
+                                </div>
                                 <p className="text-2xl font-black text-emerald-400 mt-6 tracking-widest">{couponCode}</p>
                             </div>
                             <form onSubmit={handleFuelSubmit} className="flex-1 p-8 space-y-6 text-left">
-                                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-black text-slate-800 uppercase italic">Fuel & Crew</h2><button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full">X</button></div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Fuel & Crew</h2>
+                                    <button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full"><X size={18} /></button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase">Liters</label>
