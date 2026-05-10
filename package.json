@@ -36,6 +36,7 @@
     "recharts": "^3.8.0",
     "togeojson": "^0.16.0",
     "xlsx": "^0.18.5"
+    "react-qr-code": "^2.0.15",
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -51,6 +52,5 @@
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
     "vite": "^8.0.0"
-    "react-qr-code": "^2.0.15",
   }
 }
