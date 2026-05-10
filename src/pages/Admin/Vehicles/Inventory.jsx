@@ -12,12 +12,14 @@ import QRCode from "react-qr-code";
 const VehicleInventory = () => {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false); // Add Vehicle Modal
-    const [showFuelModal, setShowFuelModal] = useState(false); // Fuel & Crew Assignment Modal
-    const [selectedVehicle, setSelectedVehicle] = useState(null);
     
+    // MODAL STATES
+    const [showModal, setShowModal] = useState(false); 
+    const [showFuelModal, setShowFuelModal] = useState(false);
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
+
     const tenantId = localStorage.getItem('tenantId') || "SAK-SIW-6925";
-    const API_BASE = "https://saksham-backend-9719.onrender.com/api/admin";
+    const API_URL = "https://saksham-backend-9719.onrender.com/api/admin";
 
     // --- Add Vehicle Form States ---
     const [isCustomType, setIsCustomType] = useState(false);
@@ -32,9 +34,9 @@ const VehicleInventory = () => {
 
     const fetchVehicles = async () => {
         try {
-            const res = await axios.get(`${API_BASE}/vehicles/${tenantId}`);
+            const res = await axios.get(`${API_URL}/vehicles/${tenantId}`);
             setVehicles(res.data.data || []);
-        } catch (err) { console.error("Fetch Error:", err); }
+        } catch (err) { console.error("Error fetching vehicles:", err); }
         finally { setLoading(false); }
     };
 
@@ -52,7 +54,7 @@ const VehicleInventory = () => {
     const searchStaff = async (val, type) => {
         if (val.length < 1) return setStaffResults(prev => ({ ...prev, [type]: [] }));
         try {
-            const res = await axios.get(`${API_BASE}/staff-search/${tenantId}?q=${val}`);
+            const res = await axios.get(`${API_URL}/staff-search/${tenantId}?q=${val}`);
             const data = res.data.data || [];
             if (type === 'drivers') {
                 const filtered = data.filter(s => s.post?.toLowerCase().includes('driver'));
@@ -67,19 +69,19 @@ const VehicleInventory = () => {
         e.preventDefault();
         const finalType = isCustomType ? vehicleFormData.custom_type : vehicleFormData.vehicle_type;
         try {
-            await axios.post(`${API_BASE}/vehicles/add`, {
+            await axios.post(`${API_URL}/vehicles/add`, {
                 ...vehicleFormData, vehicle_type: finalType, tenant_id: tenantId
             });
-            toast.success("Vehicle Asset Added Successfully! 🚛");
+            toast.success("Vehicle Added! 🚛");
             setShowModal(false);
             fetchVehicles();
-        } catch (err) { toast.error("Error adding vehicle"); }
+        } catch (err) { toast.error("Submission failed"); }
     };
 
     const handleFuelSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post(`${API_BASE}/fuel/generate`, {
+            const res = await axios.post(`${API_URL}/fuel/generate`, {
                 tenant_id: tenantId,
                 vehicle_id: selectedVehicle.id,
                 driver_id: fuelData.driverId,
@@ -88,44 +90,37 @@ const VehicleInventory = () => {
                 coupon_code: couponCode
             });
             if (res.data.success) {
-                toast.success(
-                    <div className="text-left">
-                        <p className="font-bold">Coupon Generated! ✅</p>
-                        <p className="text-[10px] uppercase">Gadi: {selectedVehicle?.vehicle_no}</p>
-                        <p className="text-[10px] uppercase">Driver: {fuelData.driver}</p>
-                        <p className="text-[10px] uppercase">Helper: {fuelData.helper || 'None'}</p>
-                    </div>, { duration: 6000 }
-                );
+                toast.success(`Coupon Generated: ${couponCode}\nVehicle: ${selectedVehicle?.vehicle_no}\nDriver: ${fuelData.driver}`, { duration: 6000 });
                 setShowFuelModal(false);
                 setFuelData({ qty: '', driver: '', driverId: '', helper: '', helperId: '' });
             }
-        } catch (err) { toast.error("Error generating coupon"); }
+        } catch (err) { toast.error("Error"); }
     };
 
     return (
         <CityLayout>
             <Toaster position="top-right" />
+            
             <div className="p-4 space-y-6 text-left">
-                {/* Header Section */}
+                {/* --- HEADER --- */}
                 <header className="flex justify-between items-center bg-white p-6 rounded-[35px] border border-slate-100 shadow-sm">
                     <div>
                         <h1 className="text-2xl font-black text-slate-800 uppercase italic">Vehicle Inventory</h1>
                         <p className="text-emerald-600 font-bold text-[9px] uppercase tracking-[0.3em]">Fleet Asset Database</p>
                     </div>
-                    {/* FIXED ADD BUTTON: Added z-index and Emerald Green like your screenshot */}
+                    {/* Add Vehicle Button - Emerald Green Styling */}
                     <button 
-                        type="button"
                         onClick={() => {
-                            console.log("Add Vehicle Clicked"); // For debugging
+                            console.log("Opening Add Modal..."); 
                             setShowModal(true);
                         }} 
-                        className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg active:scale-95 relative z-10"
+                        className="bg-[#10b981] hover:bg-[#059669] text-white px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all active:scale-95"
                     >
                         <Plus size={18} /> Add Vehicle
                     </button>
                 </header>
 
-                {/* Table Section */}
+                {/* --- TABLE --- */}
                 <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden min-h-[500px]">
                     <table className="w-full text-left">
                         <thead className="bg-slate-50/50 border-b">
@@ -168,9 +163,7 @@ const VehicleInventory = () => {
                                             >
                                                 <Fuel size={18}/>
                                             </button>
-                                            <button className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-200 transition-all">
-                                                <MoreVertical size={16}/>
-                                            </button>
+                                            <button className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-200 transition-all"><MoreVertical size={16}/></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -180,22 +173,27 @@ const VehicleInventory = () => {
                 </div>
             </div>
 
-            {/* --- ADD VEHICLE MODAL (Logic Fixed) --- */}
+            {/* --- ADD VEHICLE MODAL (ABSOLUTE TOP Z-INDEX) --- */}
             <AnimatePresence>
                 {showModal && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }} 
+                            animate={{ scale: 1, opacity: 1 }} 
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden"
+                        >
                             <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
                                 <div>
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Add New Asset</h2>
-                                    <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Register vehicle to fleet</p>
+                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Add New Asset</h2>
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Register vehicle to fleet</p>
                                 </div>
-                                <button type="button" onClick={() => setShowModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all"><X size={18} /></button>
+                                <button onClick={() => setShowModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all"><X size={18} /></button>
                             </div>
                             <form onSubmit={handleVehicleSubmit} className="p-8 space-y-6 text-left">
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Registration Number</label>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Registration No.</label>
                                         <input required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold uppercase bg-slate-50 focus:bg-white" placeholder="e.g. BR01-1234" onChange={(e) => setVehicleFormData({...vehicleFormData, vehicle_no: e.target.value})} />
                                     </div>
                                     <div className="space-y-1">
@@ -204,81 +202,67 @@ const VehicleInventory = () => {
                                             if(e.target.value === "Other") setIsCustomType(true);
                                             else { setIsCustomType(false); setVehicleFormData({...vehicleFormData, vehicle_type: e.target.value}); }
                                         }}>
-                                            <option>Tipper</option><option>Refuse Compactor</option><option>Dumper Placer</option><option>Sweeping Machine</option><option value="Other">+ Other</option>
+                                            <option>Tipper</option><option>Refuse Compactor</option><option>Dumper Placer</option><option value="Other">+ Other</option>
                                         </select>
                                     </div>
                                     {isCustomType && (
-                                        <div className="col-span-2 space-y-1">
-                                            <input required className="w-full p-4 rounded-2xl border border-emerald-200 outline-none font-bold bg-emerald-50" placeholder="Enter custom vehicle type..." onChange={(e) => setVehicleFormData({...vehicleFormData, custom_type: e.target.value})} />
-                                        </div>
+                                        <div className="col-span-2"><input required className="w-full p-4 rounded-2xl border border-emerald-200 font-bold bg-emerald-50" placeholder="Custom type..." onChange={(e) => setVehicleFormData({...vehicleFormData, custom_type: e.target.value})} /></div>
                                     )}
                                     <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Load Capacity (Tons)</label>
-                                        <input required type="number" step="0.1" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" placeholder="0.0" onChange={(e) => setVehicleFormData({...vehicleFormData, load_capacity_tons: e.target.value})} />
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Load Capacity</label>
+                                        <input required type="number" step="0.1" className="w-full p-4 rounded-2xl border border-slate-200 font-bold bg-slate-50" placeholder="Tons" onChange={(e) => setVehicleFormData({...vehicleFormData, load_capacity_tons: e.target.value})} />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Type</label>
-                                        <select className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" onChange={(e) => setVehicleFormData({...vehicleFormData, fuel_type: e.target.value})}>
-                                            <option>Diesel</option><option>CNG</option><option>Petrol</option><option>Electric</option>
+                                        <select className="w-full p-4 rounded-2xl border border-slate-200 font-bold bg-slate-50" onChange={(e) => setVehicleFormData({...vehicleFormData, fuel_type: e.target.value})}>
+                                            <option>Diesel</option><option>CNG</option><option>Petrol</option>
                                         </select>
                                     </div>
                                 </div>
-                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl">Register Vehicle Asset</button>
+                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all">Register Asset</button>
                             </form>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
 
-            {/* --- FUEL & CREW ASSIGNMENT MODAL --- */}
+            {/* --- FUEL MODAL --- */}
             <AnimatePresence>
                 {showFuelModal && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col md:flex-row">
-                            <div className="md:w-1/3 bg-slate-900 p-8 flex flex-col items-center justify-center text-center text-white">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row">
+                            <div className="md:w-1/3 bg-slate-900 p-8 flex flex-col items-center justify-center text-white">
                                 <QrCode size={40} className="text-emerald-400 mb-4" />
-                                <h3 className="text-xl font-black uppercase italic tracking-tighter mb-6">Digital Fuel Coupon</h3>
-                                <div className="bg-white p-4 rounded-3xl shadow-2xl mb-6">
-                                    <QRCode size={180} value={`COUPON:${couponCode}|VHL:${selectedVehicle?.vehicle_no}`} viewBox={`0 0 256 256`} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-                                </div>
-                                <p className="text-3xl font-black text-emerald-400 tracking-[0.3em]">{couponCode}</p>
+                                <QRCode size={150} value={`COUPON:${couponCode}`} viewBox={`0 0 256 256`} style={{ height: "auto", maxWidth: "100%", width: "100%" }} className="bg-white p-2 rounded-2xl" />
+                                <p className="text-2xl font-black text-emerald-400 mt-6 tracking-widest">{couponCode}</p>
                             </div>
                             <form onSubmit={handleFuelSubmit} className="flex-1 p-8 space-y-6 text-left">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Fuel & Crew</h2>
-                                    <button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500"><X size={18}/></button>
-                                </div>
+                                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-black text-slate-800 uppercase italic">Fuel & Crew</h2><button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full">X</button></div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Quantity</label>
-                                        <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" placeholder="Liters" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
+                                        <label className="text-[9px] font-black text-slate-400 uppercase">Liters</label>
+                                        <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border font-bold bg-slate-50" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
                                     </div>
                                     <div className="relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Driver (Search)</label>
-                                        <input required value={fuelData.driver} className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" placeholder="Search..." onChange={(e) => { setFuelData({...fuelData, driver: e.target.value}); searchStaff(e.target.value, 'drivers'); }} />
+                                        <label className="text-[9px] font-black text-slate-400 uppercase">Driver</label>
+                                        <input required value={fuelData.driver} className="w-full p-4 rounded-2xl border font-bold bg-slate-50" placeholder="Type name..." onChange={(e) => { setFuelData({...fuelData, driver: e.target.value}); searchStaff(e.target.value, 'drivers'); }} />
                                         {staffResults.drivers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 z-50 overflow-hidden py-2 max-h-40 overflow-y-auto border border-slate-100">
-                                                {staffResults.drivers.map(s => (
-                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, driver: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer text-xs font-bold px-4 border-b border-slate-50 last:border-0">{s.full_name}</div>
-                                                ))}
+                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-xl z-[100] border py-2 max-h-40 overflow-y-auto">
+                                                {staffResults.drivers.map(s => <div key={s.id} onClick={() => { setFuelData({...fuelData, driver: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer font-bold text-xs px-4">{s.full_name}</div>)}
                                             </div>
                                         )}
                                     </div>
                                     <div className="relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Helper (Search)</label>
-                                        <input value={fuelData.helper} className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold bg-slate-50" placeholder="Search..." onChange={(e) => { setFuelData({...fuelData, helper: e.target.value}); searchStaff(e.target.value, 'helpers'); }} />
+                                        <label className="text-[9px] font-black text-slate-400 uppercase">Helper</label>
+                                        <input value={fuelData.helper} className="w-full p-4 rounded-2xl border font-bold bg-slate-50" placeholder="Type name..." onChange={(e) => { setFuelData({...fuelData, helper: e.target.value}); searchStaff(e.target.value, 'helpers'); }} />
                                         {staffResults.helpers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 z-50 overflow-hidden py-2 max-h-40 overflow-y-auto border border-slate-100">
-                                                {staffResults.helpers.map(s => (
-                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, helper: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer text-xs font-bold px-4 border-b border-slate-50 last:border-0">{s.full_name}</div>
-                                                ))}
+                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-xl z-[100] border py-2 max-h-40 overflow-y-auto">
+                                                {staffResults.helpers.map(s => <div key={s.id} onClick={() => { setFuelData({...fuelData, helper: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer font-bold text-xs px-4">{s.full_name}</div>)}
                                             </div>
                                         )}
                                     </div>
                                 </div>
-                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl flex items-center justify-center gap-3">
-                                    <CheckCircle size={20}/> Issue Coupon & Assign Crew
-                                </button>
+                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs hover:bg-emerald-600 transition-all">Submit Assignment</button>
                             </form>
                         </motion.div>
                     </div>
