@@ -103,7 +103,7 @@ const VehicleInventory = () => {
             
             <div className="p-4 space-y-6 text-left relative z-10">
                 {/* --- HEADER --- */}
-                <header className="flex justify-between items-center bg-white p-6 rounded-[35px] border border-slate-100 shadow-sm relative z-20">
+                <header className="flex justify-between items-center bg-white p-6 rounded-[35px] border border-slate-100 shadow-sm relative z-[9999] pointer-events-auto">
                     <div>
                         <h1 className="text-2xl font-black text-slate-800 uppercase italic">Vehicle Inventory</h1>
                         <p className="text-emerald-600 font-bold text-[9px] uppercase tracking-[0.3em]">Fleet Asset Database</p>
@@ -118,7 +118,7 @@ const VehicleInventory = () => {
                             console.log("CLICK DETECTED!");
                             setShowModal(true);
                         }} 
-                        className="relative z-[50] bg-[#10b981] hover:bg-[#059669] text-white px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all active:scale-95 pointer-events-auto cursor-pointer"
+                        className="relative z-[10000] pointer-events-auto cursor-pointer bg-[#10b981] hover:bg-[#059669] text-white px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all active:scale-95"
                     >
                         <Plus size={18} /> ADD VEHICLE
                     </button>
