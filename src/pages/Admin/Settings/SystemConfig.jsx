@@ -15,7 +15,7 @@ const SystemConfig = () => {
 
     const fetchSettings = async () => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/admin/config/${tenantId}`);
+            const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/config/${tenantId}`);
             const configObj = {};
             res.data.data.forEach(item => configObj[item.config_key] = item.config_value);
             setSettings(configObj);
@@ -25,7 +25,7 @@ const SystemConfig = () => {
     const handleSave = async () => {
         setLoading(true);
         try {
-            await axios.post('http://localhost:5000/api/admin/config/save', { tenant_id: tenantId, settings });
+            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/config/save', { tenant_id: tenantId, settings });
             toast.success("Settings Mapped to Database! 🚀");
         } catch (err) { toast.error("Save Operation Failed"); }
         finally { setLoading(false); }
