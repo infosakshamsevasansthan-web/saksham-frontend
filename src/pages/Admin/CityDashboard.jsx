@@ -20,7 +20,7 @@ const CityDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/dashboard-stats/${tenantId}`);
+      const res = await fetch(`https://saksham-backend-9719.onrender.com/api/admin/dashboard-stats/${tenantId}`);
       const result = await res.json();
       if (result.success) setStats(result.data);
     } catch (err) {
