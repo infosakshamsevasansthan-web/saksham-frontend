@@ -19,7 +19,7 @@ const CityLayout = ({ children }) => {
 
       <CitySidebar isOpen={sidebarOpen} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+<div className="flex-1 flex flex-col min-w-0">
         {/* Topbar Wrapper with guaranteed Z-index */}
         <div className="z-[100] relative">
           <CityTopbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
