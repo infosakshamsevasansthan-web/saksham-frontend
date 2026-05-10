@@ -16,7 +16,7 @@ const DeviceControl = () => {
     const fetchDevices = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:5000/api/admin/devices/${tenantId}`);
+            const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/devices/${tenantId}`);
             // Safety: Agar data na mile toh empty array set karein
             setDevices(res.data.data || []);
         } catch (err) { 
