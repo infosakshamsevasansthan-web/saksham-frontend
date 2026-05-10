@@ -34,7 +34,7 @@ const Profile = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/admin/update-profile', {
+      await axios.post('https://saksham-backend-9719.onrender.com/api/admin/update-profile', {
         tenant_id: t_id,
         full_name: profileData.full_name,
         email: profileData.email,
