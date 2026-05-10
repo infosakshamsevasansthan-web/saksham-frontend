@@ -9,13 +9,17 @@ const CityLayout = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
+    const timer = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      <AnimatePresence>{loading && <Loader />}</AnimatePresence>
+      {loading && (
+  <div className="fixed inset-0 z-[999999]">
+    <Loader />
+  </div>
+)}
 
       <CitySidebar isOpen={sidebarOpen} />
 
