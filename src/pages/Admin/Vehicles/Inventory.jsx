@@ -111,13 +111,11 @@ const VehicleInventory = () => {
                     
                     {/* FIXED BUTTON: pointer-events-auto added */}
                     <button 
-                        type="button"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log("CLICK DETECTED!");
-                            setShowModal(true);
-                        }} 
+    type="button"
+    onClick={() => {
+        alert("BUTTON CLICK WORKING");
+        setShowModal(true);
+    }}
                         className="relative z-[10000] pointer-events-auto cursor-pointer bg-[#10b981] hover:bg-[#059669] text-white px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-2 shadow-lg transition-all active:scale-95"
                     >
                         <Plus size={18} /> ADD VEHICLE
