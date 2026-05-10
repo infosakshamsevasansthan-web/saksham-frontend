@@ -12,9 +12,8 @@ import QRCode from "react-qr-code";
 const VehicleInventory = () => {
     const [vehicles, setVehicles] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [showFuelModal, setShowFuelModal] = useState(false);
-    const [showStaffModal, setShowStaffModal] = useState(false);
+    const [showModal, setShowModal] = useState(false); // Add Vehicle Modal
+    const [showFuelModal, setShowFuelModal] = useState(false); // Fuel + Staff Assignment Modal
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     const tenantId = localStorage.getItem('tenantId') || "SAK-SIW-6925";
 
@@ -24,10 +23,7 @@ const VehicleInventory = () => {
         vehicle_no: '', vehicle_type: 'Tipper', custom_type: '', load_capacity_tons: '', fuel_type: 'Diesel', gps_device_id: '', status: 'active'
     });
 
-    // --- Staff Assignment States ---
-    const [staffFormData, setStaffFormData] = useState({ circle: '', ward: '', driverName: '', driverId: '', helperName: '', helperId: '' });
-
-    // Fuel Form States
+    // --- Fuel & Staff Assignment States (Merged as per your request) ---
     const [fuelData, setFuelData] = useState({ qty: '', driver: '', driverId: '', helper: '', helperId: '' });
     const [staffResults, setStaffResults] = useState({ drivers: [], helpers: [] });
     const [couponCode, setCouponCode] = useState('');
@@ -51,12 +47,9 @@ const VehicleInventory = () => {
         setCouponCode(res);
     };
 
-    // --- Staff Search Logic ---
+    // 🟢 Staff Search (Alfabet type karte hi result dikhayega)
     const searchStaff = async (val, type) => {
-        if (val.length < 1) {
-            setStaffResults(prev => ({ ...prev, [type]: [] }));
-            return;
-        }
+        if (val.length < 1) return setStaffResults(prev => ({ ...prev, [type]: [] }));
         try {
             const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/staff-search/${tenantId}?q=${val}`);
             const data = res.data.data || [];
@@ -76,31 +69,10 @@ const VehicleInventory = () => {
             await axios.post('https://saksham-backend-9719.onrender.com/api/admin/vehicles/add', {
                 ...vehicleFormData, vehicle_type: finalType, tenant_id: tenantId
             });
-            toast.success("Vehicle Added Successfully! 🚛");
+            toast.success("Vehicle Asset Added Successfully! 🚛");
             setShowModal(false);
             fetchVehicles();
         } catch (err) { toast.error("Error adding vehicle"); }
-    };
-
-    const handleStaffSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/vehicles/assign-crew', {
-                ...staffFormData, vehicle_id: selectedVehicle.id, tenant_id: tenantId
-            });
-            // Detailed Success Message
-            toast.success(
-                <div>
-                    <p className="font-bold">Crew Assigned Successfully! ✅</p>
-                    <p className="text-[10px]">Vehicle: {selectedVehicle?.vehicle_no}</p>
-                    <p className="text-[10px]">Driver: {staffFormData.driverName}</p>
-                    <p className="text-[10px]">Helper: {staffFormData.helperName || 'N/A'}</p>
-                </div>, 
-                { duration: 5000 }
-            );
-            setShowStaffModal(false);
-            setStaffFormData({ circle: '', ward: '', driverName: '', driverId: '', helperName: '', helperId: '' });
-        } catch (err) { toast.error("Staff assignment failed"); }
     };
 
     const handleFuelSubmit = async (e) => {
@@ -115,23 +87,34 @@ const VehicleInventory = () => {
                 coupon_code: couponCode
             });
             if (res.data.success) {
-                toast.success(`Coupon Generated: ${couponCode}`, { duration: 6000 });
+                // Success message with Gadi No, Driver and Helper
+                toast.success(
+                    <div className="text-left">
+                        <p className="font-bold">Coupon Generated! ✅</p>
+                        <p className="text-[10px] uppercase">Gadi: {selectedVehicle?.vehicle_no}</p>
+                        <p className="text-[10px] uppercase">Driver: {fuelData.driver}</p>
+                        <p className="text-[10px] uppercase">Helper: {fuelData.helper || 'None'}</p>
+                    </div>,
+                    { duration: 6000 }
+                );
                 setShowFuelModal(false);
+                setFuelData({ qty: '', driver: '', driverId: '', helper: '', helperId: '' });
             }
         } catch (err) { toast.error("Error generating coupon"); }
     };
 
     return (
         <CityLayout>
-            <Toaster position="top-right" reverseOrder={false} />
+            <Toaster position="top-right" />
             <div className="p-4 space-y-6 text-left">
                 <header className="flex justify-between items-center bg-white p-6 rounded-[35px] border border-slate-100 shadow-sm">
                     <div>
                         <h1 className="text-2xl font-black text-slate-800 uppercase italic">Vehicle Inventory</h1>
                         <p className="text-emerald-600 font-bold text-[9px] uppercase tracking-[0.3em]">Fleet Asset Database</p>
                     </div>
-                    {/* Add Vehicle Button Fix */}
+                    {/* FIXED: Modal opening logic */}
                     <button 
+                        type="button"
                         onClick={() => setShowModal(true)} 
                         className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-xl active:scale-95"
                     >
@@ -178,17 +161,12 @@ const VehicleInventory = () => {
                                             <button 
                                                 onClick={() => { setSelectedVehicle(v); generateCoupon(); setShowFuelModal(true); }}
                                                 className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-                                                title="Fuel Coupon"
+                                                title="Fuel & Crew Assignment"
                                             >
                                                 <Fuel size={18}/>
                                             </button>
-                                            
-                                            {/* Three Dot Button - Assigned to Staff Modal */}
-                                            <button 
-                                                onClick={() => { setSelectedVehicle(v); setShowStaffModal(true); }}
-                                                className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all"
-                                                title="Assign Crew"
-                                            >
+                                            {/* 3 dots for potential more options */}
+                                            <button className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-200 transition-all">
                                                 <MoreVertical size={16}/>
                                             </button>
                                         </div>
@@ -200,163 +178,7 @@ const VehicleInventory = () => {
                 </div>
             </div>
 
-            {/* --- FUEL COUPON MODAL --- */}
-            <AnimatePresence>
-                {showFuelModal && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col md:flex-row">
-                            <div className="md:w-1/3 bg-slate-900 p-8 flex flex-col items-center justify-center text-center text-white">
-                                <QrCode size={40} className="text-emerald-400 mb-4" />
-                                <h3 className="text-xl font-black uppercase italic tracking-tighter mb-6">Digital Fuel Coupon</h3>
-                                <div className="bg-white p-4 rounded-3xl shadow-2xl shadow-emerald-500/20 mb-6">
-                                    <QRCode 
-                                        size={180}
-                                        value={`COUPON:${couponCode}|VHL:${selectedVehicle?.vehicle_no}|QTY:${fuelData.qty || 0}`}
-                                        viewBox={`0 0 256 256`}
-                                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                    />
-                                </div>
-                                <p className="text-3xl font-black text-emerald-400 tracking-[0.3em]">{couponCode}</p>
-                                <p className="text-[10px] font-bold text-white/40 uppercase mt-2">{selectedVehicle?.vehicle_no}</p>
-                            </div>
-
-                            <form onSubmit={handleFuelSubmit} className="flex-1 p-8 space-y-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Fuel Allocation</h2>
-                                    <button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all"><X size={18}/></button>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2 space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Quantity (Liters)</label>
-                                        <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white transition-all" placeholder="Enter quantity" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
-                                    </div>
-
-                                    <div className="relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Driver Name / ID</label>
-                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4 focus-within:bg-white transition-all">
-                                            <User size={16} className="text-slate-400" />
-                                            <input required value={fuelData.driver} className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Search Driver" onChange={(e) => { setFuelData({...fuelData, driver: e.target.value}); searchStaff(e.target.value, 'drivers'); }} />
-                                        </div>
-                                        {staffResults.drivers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2 max-h-48 overflow-y-auto">
-                                                {staffResults.drivers.map(s => (
-                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, driver: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4 border-b border-slate-50">
-                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-black uppercase">ID: {s.id}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Helper Name / ID</label>
-                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4 focus-within:bg-white transition-all">
-                                            <User size={16} className="text-slate-400" />
-                                            <input value={fuelData.helper} className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Search Helper" onChange={(e) => { setFuelData({...fuelData, helper: e.target.value}); searchStaff(e.target.value, 'helpers'); }} />
-                                        </div>
-                                        {staffResults.helpers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2 max-h-48 overflow-y-auto">
-                                                {staffResults.helpers.map(s => (
-                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, helper: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4 border-b border-slate-50">
-                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-black uppercase">ID: {s.id}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <button type="submit" className="w-full bg-slate-900 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95">
-                                    <CheckCircle size={20}/> Issue Coupon & Notify Pump
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* --- STAFF ASSIGNMENT MODAL (Link with Three Dots) --- */}
-            <AnimatePresence>
-                {showStaffModal && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100">
-                            <div className="p-8 border-b flex justify-between items-center bg-slate-50/50">
-                                <div>
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Assign Asset Crew</h2>
-                                    <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Gaadi: {selectedVehicle?.vehicle_no}</p>
-                                </div>
-                                <button type="button" onClick={() => setShowStaffModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all"><X size={18}/></button>
-                            </div>
-
-                            <form onSubmit={handleStaffSubmit} className="p-8 space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><Layers size={12}/> Circle / Region</label>
-                                        <select required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" onChange={(e) => setStaffFormData({...staffFormData, circle: e.target.value})}>
-                                            <option value="">Select Circle</option>
-                                            <option>Circle 01</option><option>Circle 02</option><option>Circle 03</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><MapPin size={12}/> Ward Number</label>
-                                        <select required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50" onChange={(e) => setStaffFormData({...staffFormData, ward: e.target.value})}>
-                                            <option value="">Select Ward</option>
-                                            {[...Array(30)].map((_, i) => <option key={i}>Ward {i+1}</option>)}
-                                        </select>
-                                    </div>
-
-                                    {/* Primary Driver Search-as-you-type */}
-                                    <div className="col-span-2 relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><User size={12}/> Primary Driver (Search Name)</label>
-                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
-                                            <Search size={16} className="text-slate-400" />
-                                            <input required className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Start typing driver name..." onChange={(e) => { setStaffFormData({...staffFormData, driverName: e.target.value}); searchStaff(e.target.value, 'drivers'); }} value={staffFormData.driverName} />
-                                        </div>
-                                        {staffResults.drivers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2 max-h-40 overflow-y-auto">
-                                                {staffResults.drivers.map(s => (
-                                                    <div key={s.id} onClick={() => { setStaffFormData({...staffFormData, driverName: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4 border-b border-slate-50 last:border-0">
-                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black uppercase">ID: {s.id}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Helper Search-as-you-type */}
-                                    <div className="col-span-2 relative space-y-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2 flex items-center gap-1"><User size={12}/> Assistant Helper</label>
-                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
-                                            <Search size={16} className="text-slate-400" />
-                                            <input className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Start typing helper name..." onChange={(e) => { setStaffFormData({...staffFormData, helperName: e.target.value}); searchStaff(e.target.value, 'helpers'); }} value={staffFormData.helperName} />
-                                        </div>
-                                        {staffResults.helpers.length > 0 && (
-                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2 max-h-40 overflow-y-auto">
-                                                {staffResults.helpers.map(s => (
-                                                    <div key={s.id} onClick={() => { setStaffFormData({...staffFormData, helperName: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4 border-b border-slate-50 last:border-0">
-                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
-                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black uppercase">{s.post || 'STAFF'}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <button type="submit" className="w-full bg-slate-900 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95">
-                                    <Save size={20}/> Confirm Crew Assignment
-                                </button>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* --- ADD VEHICLE MODAL (Fixed Opening) --- */}
+            {/* --- ADD VEHICLE MODAL (Fixed) --- */}
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
@@ -366,11 +188,13 @@ const VehicleInventory = () => {
                                     <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Add New Asset</h2>
                                     <p className="text-[10px] font-bold text-emerald-600 mt-2 uppercase tracking-widest">Register vehicle to fleet</p>
                                 </div>
-                                <button type="button" onClick={() => setShowModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all"><X size={18}/></button>
+                                <button onClick={() => setShowModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all">
+                                    <X size={18} />
+                                </button>
                             </div>
 
                             <form onSubmit={handleVehicleSubmit} className="p-8 space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-2 gap-6 text-left">
                                     <div className="space-y-1">
                                         <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Registration Number</label>
                                         <input required className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold uppercase bg-slate-50 focus:bg-white" placeholder="e.g. BR01-1234" onChange={(e) => setVehicleFormData({...vehicleFormData, vehicle_no: e.target.value})} />
@@ -407,7 +231,88 @@ const VehicleInventory = () => {
                                         </select>
                                     </div>
                                 </div>
-                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl active:scale-95">Register Vehicle Asset</button>
+                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl">Register Vehicle Asset</button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* --- FUEL + CREW ASSIGNMENT MODAL --- */}
+            <AnimatePresence>
+                {showFuelModal && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-100 flex flex-col md:flex-row">
+                            
+                            <div className="md:w-1/3 bg-slate-900 p-8 flex flex-col items-center justify-center text-center text-white">
+                                <QrCode size={40} className="text-emerald-400 mb-4" />
+                                <h3 className="text-xl font-black uppercase italic tracking-tighter mb-6">Digital Fuel Coupon</h3>
+                                <div className="bg-white p-4 rounded-3xl shadow-2xl shadow-emerald-500/20 mb-6">
+                                    <QRCode 
+                                        size={180}
+                                        value={`COUPON:${couponCode}|VHL:${selectedVehicle?.vehicle_no}|QTY:${fuelData.qty || 0}`}
+                                        viewBox={`0 0 256 256`}
+                                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                    />
+                                </div>
+                                <p className="text-3xl font-black text-emerald-400 tracking-[0.3em]">{couponCode}</p>
+                                <p className="text-[10px] font-bold text-white/40 uppercase mt-2">{selectedVehicle?.vehicle_no}</p>
+                            </div>
+
+                            <form onSubmit={handleFuelSubmit} className="flex-1 p-8 space-y-6 text-left">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Fuel & Crew Assignment</h2>
+                                    <button type="button" onClick={() => setShowFuelModal(false)} className="p-2 bg-rose-50 text-rose-500 rounded-full hover:bg-rose-500 hover:text-white transition-all"><X size={18}/></button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Fuel Quantity (Liters)</label>
+                                        <input required type="number" step="0.01" className="w-full p-4 rounded-2xl border border-slate-200 outline-none font-bold text-slate-700 bg-slate-50 focus:bg-white transition-all" placeholder="Enter quantity" onChange={(e) => setFuelData({...fuelData, qty: e.target.value})} />
+                                    </div>
+
+                                    {/* DRIVER SEARCH */}
+                                    <div className="relative space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Driver Name (Search)</label>
+                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4 focus-within:bg-white transition-all">
+                                            <User size={16} className="text-slate-400" />
+                                            <input required value={fuelData.driver} className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Type name..." onChange={(e) => { setFuelData({...fuelData, driver: e.target.value}); searchStaff(e.target.value, 'drivers'); }} />
+                                        </div>
+                                        {staffResults.drivers.length > 0 && (
+                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2 max-h-48 overflow-y-auto">
+                                                {staffResults.drivers.map(s => (
+                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, driver: s.full_name, driverId: s.id}); setStaffResults({...staffResults, drivers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4 border-b border-slate-50">
+                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
+                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-black uppercase">ID: {s.id}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* HELPER SEARCH */}
+                                    <div className="relative space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase ml-2">Helper Name (Search)</label>
+                                        <div className="flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4 focus-within:bg-white transition-all">
+                                            <User size={16} className="text-slate-400" />
+                                            <input value={fuelData.helper} className="w-full p-4 bg-transparent outline-none font-bold text-slate-700 text-sm" placeholder="Type name..." onChange={(e) => { setFuelData({...fuelData, helper: e.target.value}); searchStaff(e.target.value, 'helpers'); }} />
+                                        </div>
+                                        {staffResults.helpers.length > 0 && (
+                                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl mt-2 border border-slate-100 z-50 overflow-hidden py-2 max-h-48 overflow-y-auto">
+                                                {staffResults.helpers.map(s => (
+                                                    <div key={s.id} onClick={() => { setFuelData({...fuelData, helper: s.full_name, helperId: s.id}); setStaffResults({...staffResults, helpers: []}); }} className="p-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center px-4 border-b border-slate-50">
+                                                        <span className="text-xs font-bold text-slate-700">{s.full_name}</span>
+                                                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-black uppercase">ID: {s.id}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="w-full bg-slate-900 hover:bg-emerald-600 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95">
+                                    <CheckCircle size={20}/> Issue Coupon & Assign Crew
+                                </button>
                             </form>
                         </motion.div>
                     </div>
