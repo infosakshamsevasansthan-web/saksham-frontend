@@ -16,7 +16,7 @@ const Profile = () => {
       return toast.error("Tenant ID Missing!");
     }
     try {
-      const res = await axios.get(`http://localhost:5000/api/admin/profile-details/${t_id}`);
+      const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/profile-details/${t_id}`);
       if (res.data.success) {
         setProfileData(res.data.data);
       }
