@@ -58,7 +58,18 @@ const HierarchySetup = () => {
             }
         }
     };
-
+// handleEdit function define karein
+const handleEdit = (node) => {
+    setIsEditing(true);
+    setEditId(node.id);
+    setFormData({
+        name_en: node.designation_name_en,
+        name_hi: node.designation_name_hi,
+        parent_id: node.parent_id || '',
+        role_id: node.role_id || '5'
+    });
+    setShowModal(true);
+};
     // 🟢 2. DATABASE OPERATIONS (Fetch, Add, Update, Delete)
     const fetchData = async () => {
         setLoading(true);
@@ -200,8 +211,13 @@ const HierarchySetup = () => {
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-xl rounded-[45px] shadow-2xl overflow-hidden border border-white/20">
                             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tight">{isEditing ? 'Modify Authority' : 'Define Authority Post'}</h2>
-                                <button onClick={() => setShowModal(false)} className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-rose-500 font-black shadow-sm transition-all hover:scale-110">X</button>
-                            </div>
+                                // Pehle jahan itna bada inline code tha, ab bas itna likhein:
+<button 
+    onClick={() => handleEdit(d)} 
+    className="p-2 text-slate-400 hover:text-blue-500"
+>
+    <Edit3 size={14}/>
+</button>                            </div>
 
                             <form onSubmit={handleSubmit} className="p-10 space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
