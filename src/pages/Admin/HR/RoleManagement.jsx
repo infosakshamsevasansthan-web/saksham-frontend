@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
-import { ShieldCheck, UserCheck, Layers, MapPin, Truck, Users, Settings, X, Save, Plus, Loader2, Info, ChevronRight, HardDrive } from 'lucide-react';
+import { ShieldCheck, UserCheck, Layers, MapPin, Truck, Users, Settings, X, Save, Plus, Loader2, Info, ChevronRight, HardDrive, LayoutGrid, Droplets, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
@@ -36,10 +36,22 @@ const RoleManagement = () => {
     useEffect(() => { fetchData(); }, [tenantId]);
 
     const handleRoleSelect = (role) => {
-        setSelectedRole(role);
-        // Backend se JSON format mein aayega, use object mein badlo
-        setPermissions(typeof role.permissions === 'string' ? JSON.parse(role.permissions) : role.permissions || {});
-    };
+    setSelectedRole(role);
+    try {
+        if (!role.permissions) {
+            setPermissions({});
+            return;
+        }
+        // Agar string hai toh parse karo, warna direct object use karo
+        const parsedPermissions = typeof role.permissions === 'string' 
+            ? JSON.parse(role.permissions) 
+            : role.permissions;
+        setPermissions(parsedPermissions || {});
+    } catch (e) {
+        console.error("Permission parse error:", e);
+        setPermissions({}); // Error aane par empty object set kardo taaki crash na ho
+    }
+};
 
     const togglePermission = (menuId) => {
         setPermissions(prev => ({
