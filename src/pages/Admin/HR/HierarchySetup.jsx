@@ -211,7 +211,7 @@ const handleEdit = (node) => {
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-xl rounded-[45px] shadow-2xl overflow-hidden border border-white/20">
                             <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <h2 className="text-xl font-black text-slate-800 uppercase italic tracking-tight">{isEditing ? 'Modify Authority' : 'Define Authority Post'}</h2>
-                                // Pehle jahan itna bada inline code tha, ab bas itna likhein:
+                                
 <button 
     onClick={() => handleEdit(d)} 
     className="p-2 text-slate-400 hover:text-blue-500"
