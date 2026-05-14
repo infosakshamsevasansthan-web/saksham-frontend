@@ -24,14 +24,18 @@ const RoleManagement = () => {
     ];
 
     const fetchData = async () => {
-        setLoading(true);
-        try {
-            const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/roles/${tenantId}`);
-            setRoles(res.data.data || []);
-            if (res.data.data.length > 0) handleRoleSelect(res.data.data[0]);
-        } catch (err) { toast.error("Role Sync Failed"); }
-        finally { setLoading(false); }
-    };
+    setLoading(true);
+    try {
+        const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/roles/${tenantId}`);
+        const rolesData = res.data.data || [];
+        setRoles(rolesData);
+        if (rolesData.length > 0) handleRoleSelect(rolesData[0]);
+    } catch (err) { 
+        console.error("API Error:", err); // Isse console mein asli wajah dikhegi
+        toast.error("Role Sync Failed: " + (err.response?.data?.message || "Server Error")); 
+    }
+    finally { setLoading(false); }
+};
 
     useEffect(() => { fetchData(); }, [tenantId]);
 
