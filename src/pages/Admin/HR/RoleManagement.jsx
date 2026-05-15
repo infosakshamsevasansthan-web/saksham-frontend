@@ -3,7 +3,8 @@ import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import { 
     ShieldCheck, UserCheck, Layers, MapPin, Truck, Users, 
     Settings, X, Save, Plus, Loader2, Info, ChevronRight, 
-    LayoutGrid, Droplets, AlertCircle, CheckCircle2, Circle
+    LayoutGrid, Droplets, AlertCircle, CheckCircle2, Circle,
+    Map, FileText, Smartphone, Megaphone, BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -15,37 +16,87 @@ const RoleManagement = () => {
     const [selectedRole, setSelectedRole] = useState(null);
     const [permissions, setPermissions] = useState({});
     const tenantId = localStorage.getItem('tenantId');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newRoleName, setNewRoleName] = useState('');
 
+    // 🟢 Exact match with your sidebar menus & sub-menus
     const menuList = [
         { 
             id: 'dashboard', label: 'Dashboard Overview', icon: LayoutGrid,
-            submenus: [{ id: 'db_summary', label: 'Summary' }, { id: 'db_analytics', label: 'Analytics' }]
+            submenus: [] 
         },
         { 
-            id: 'fleet', label: 'Vehicle Management', icon: Truck,
-            submenus: [{ id: 'v_live', label: 'Live Tracking' }, { id: 'v_list', label: 'Fleet List' }, { id: 'v_fuel', label: 'Fuel Logs' }]
+            id: 'live_tracking', label: 'Live Tracking (Map)', icon: Map,
+            submenus: [
+                { id: 'lt_staff', label: 'Staff Live Location' },
+                { id: 'lt_vehicle', label: 'Vehicle Movement' },
+                { id: 'lt_toilet', label: 'Sulabh Sauchalay Map' },
+                { id: 'lt_dump', label: 'Garbage Dump Points' }
+            ]
+        },
+        { 
+            id: 'ward_households', label: 'Ward & Households', icon: Layers,
+            submenus: [
+                { id: 'wh_def', label: 'Ward Definition' },
+                { id: 'wh_gis', label: 'GIS Boundary Mapping' },
+                { id: 'wh_road', label: 'Road Hierarchy Entry' },
+                { id: 'wh_registry', label: 'Household Registry' },
+                { id: 'wh_qr', label: 'Bulk QR Generator' }
+            ]
+        },
+        { 
+            id: 'vehicle_mgt', label: 'Vehicle Management', icon: Truck,
+            submenus: [
+                { id: 'vm_add', label: 'Add New Vehicle' },
+                { id: 'vm_req', label: 'Fleet Requests' },
+                { id: 'vm_deploy', label: 'Ward Deployment' },
+                { id: 'vm_maint', label: 'Vehicle Maintenance' },
+                { id: 'vm_fuel', label: 'Fuel & Coupon Logs' },
+                { id: 'vm_ins', label: 'Maintenance & Insurance' },
+                { id: 'vm_gps', label: 'GPS Device Status' }
+            ]
         },
         { 
             id: 'hr', label: 'Human Resources', icon: Users,
-            submenus: [{ id: 'hr_hierarchy', label: 'Hierarchy Setup' }, { id: 'hr_staff', label: 'Staff List' }, { id: 'hr_att', label: 'Attendance' }]
+            submenus: [
+                { id: 'hr_org', label: 'Organization Hierarchy' },
+                { id: 'hr_role', label: 'Role Management' },
+                { id: 'hr_staff', label: 'User & Staff List' },
+                { id: 'hr_work', label: 'Work Assignment' },
+                { id: 'hr_att', label: 'Smart Attendance' }
+            ]
         },
         { 
-            id: 'swm', label: 'SWM Operations', icon: Droplets,
-            submenus: [{ id: 'swm_routes', label: 'Route Plan' }, { id: 'swm_bin', label: 'Bin Monitoring' }]
-        },
-        { 
-            id: 'ward_road', label: 'Ward & Road Management', icon: MapPin,
-            submenus: [{ id: 'w_ward', label: 'Ward Master' }, { id: 'w_road', label: 'Road Assets' }]
-        },
-        { 
-            id: 'circle', label: 'Circle Administration', icon: Layers,
-            submenus: [{ id: 'c_zone', label: 'Zone Setup' }, { id: 'c_circle', label: 'Circle Master' }]
+            id: 'swm_ops', label: 'SWM Operations', icon: Droplets,
+            submenus: [
+                { id: 'swm_logs', label: 'D2D Collection Logs' },
+                { id: 'swm_route', label: 'Route Optimization' },
+                { id: 'swm_plant', label: 'Waste Processing Plant' }
+            ]
         },
         { 
             id: 'grievance', label: 'Grievance Redressal', icon: AlertCircle,
-            submenus: [{ id: 'g_tickets', label: 'All Tickets' }, { id: 'g_report', label: 'Resolution Report' }]
+            submenus: [] 
+        },
+        { 
+            id: 'reports', label: 'Report Centre', icon: BarChart3,
+            submenus: [
+                { id: 'rep_coll', label: 'Collection Reports' },
+                { id: 'rep_staff', label: 'Staff Performance' },
+                { id: 'rep_comp', label: 'Complaint Analytics' },
+                { id: 'rep_fuel', label: 'Fuel & Mileage Analysis' },
+                { id: 'rep_ai', label: 'Saksham AI' }
+            ]
+        },
+        { 
+            id: 'sys_config', label: 'System Configuration', icon: Settings,
+            submenus: [] 
+        },
+        { 
+            id: 'device_control', label: 'Device & Control', icon: Smartphone,
+            submenus: [] 
+        },
+        { 
+            id: 'iec_ops', label: 'IEC Operations', icon: Megaphone,
+            submenus: [] 
         }
     ];
 
@@ -102,7 +153,6 @@ const RoleManagement = () => {
         } catch (err) { toast.error("Update failed"); }
     };
 
-    // 🟢 YE RAHA AAPKA FUNCTION (Yahan place kiya hai)
     const handleCreateRole = async (roleName) => {
         try {
             await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/create', {
@@ -110,7 +160,7 @@ const RoleManagement = () => {
                 role_name: roleName
             });
             toast.success("New Role Created! 🚀");
-            fetchData(); // List refresh karne ke liye
+            fetchData();
         } catch (err) {
             console.error(err);
             toast.error("Role creation failed");
@@ -132,10 +182,9 @@ const RoleManagement = () => {
                             <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Role & Permission Hierarchy Master</p>
                         </div>
                     </div>
-                    {/* 🟢 Button handleCreateRole ko call kar raha hai */}
                     <button 
                         onClick={() => {
-                            const name = prompt("Enter New Role Name (e.g. Supervisor):");
+                            const name = prompt("Enter New Role Name:");
                             if(name) handleCreateRole(name);
                         }}
                         className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-900 transition-all shadow-md"
@@ -146,7 +195,6 @@ const RoleManagement = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     
-                    {/* LEFT: ROLE SELECTOR */}
                     <div className="lg:col-span-4 space-y-4">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Select Unit Role</h3>
                         <div className="space-y-3">
@@ -162,7 +210,7 @@ const RoleManagement = () => {
                                         </div>
                                         <div>
                                             <p className={`text-sm font-black uppercase ${selectedRole?.id === role.id ? 'text-emerald-700' : 'text-slate-700'}`}>{role.role_name}</p>
-                                            <p className="text-[9px] font-bold text-slate-400 uppercase">Lvl: {role.id}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase">LVL: {role.id}</p>
                                         </div>
                                     </div>
                                     <ChevronRight size={18} className={selectedRole?.id === role.id ? 'text-emerald-500' : 'text-slate-300'} />
@@ -171,7 +219,6 @@ const RoleManagement = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT: PERMISSION MATRIX */}
                     <div className="lg:col-span-8 bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
                         <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <div>
@@ -199,7 +246,7 @@ const RoleManagement = () => {
                                         </div>
                                     </div>
 
-                                    {permissions[menu.id] && (
+                                    {menu.submenus.length > 0 && permissions[menu.id] && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                                             {menu.submenus.map(sub => (
                                                 <div 
