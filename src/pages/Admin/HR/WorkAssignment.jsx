@@ -10,10 +10,55 @@ import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
 // 🟢 Map Components
-import { MapContainer, TileLayer, Polygon, FeatureGroup, useMap } from 'react-leaflet';
-import { EditControl } from "react-leaflet-draw";
+import { MapContainer, TileLayer, Polygon, useMap } from 'react-leaflet';
 import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
+// Geoman CSS (Aapke package mein ye hai)
+import "@geoman-io/leaflet-geoman-free";
+import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+
+// 🟢 Geoman Toolbar Setup Component
+const GeomanTools = ({ onShapeCreated }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!map) return;
+
+        // Toolbar add karein
+        map.pm.addControls({
+            position: 'topright',
+            drawMarker: true,
+            drawPolyline: false,
+            drawRectangle: true,
+            drawPolygon: true,
+            drawCircle: false,
+            drawCircleMarker: false,
+            editMode: true,
+            dragMode: true,
+            cutPolygon: false,
+            removalMode: true,
+        });
+
+        // Jab user shape draw kare
+        map.on('pm:create', (e) => {
+            const { layer } = e;
+            const coords = layer.getLatLngs();
+            onShapeCreated(JSON.stringify(coords));
+            
+            // Edit hone par update karein
+            layer.on('pm:edit', () => {
+                const newCoords = layer.getLatLngs();
+                onShapeCreated(JSON.stringify(newCoords));
+            });
+        });
+
+        return () => {
+            map.pm.removeControls();
+            map.off('pm:create');
+        };
+    }, [map]);
+
+    return null;
+};
 
 const WorkAssignment = () => {
     const [staffList, setStaffList] = useState([]);
@@ -34,7 +79,6 @@ const WorkAssignment = () => {
     
     const tenantId = localStorage.getItem('tenantId');
 
-    // 🟢 Fetch Data
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -52,7 +96,6 @@ const WorkAssignment = () => {
 
     useEffect(() => { fetchData(); }, [tenantId]);
 
-    // 🟢 Fetch Roads when Ward is selected
     useEffect(() => {
         if (selectedWardId) {
             axios.get(`https://saksham-backend-9719.onrender.com/api/admin/roads-by-ward/${tenantId}/${selectedWardId}`)
@@ -64,24 +107,18 @@ const WorkAssignment = () => {
     const filteredWards = allWards.filter(w => w.circle_id == selectedCircleId);
     const currentWardData = allWards.find(w => w.id == selectedWardId);
 
-    // 🟢 Map Zoom Logic
-    function ChangeView({ bounds }) {
+    // 🟢 Map Zoom Logic Component
+    const ChangeView = ({ bounds }) => {
         const map = useMap();
-        if (bounds) map.fitBounds(bounds);
+        useEffect(() => {
+            if (bounds && bounds.length > 0) map.fitBounds(bounds);
+        }, [bounds]);
         return null;
     }
 
-    const _onCreate = (e) => {
-        const { layerType, layer } = e;
-        if (layerType === "polygon" || layerType === "rectangle") {
-            const coords = layer.getLatLngs();
-            setDrawnCoords(JSON.stringify(coords));
-        }
-    };
-
     const handleAssignSubmit = async (e) => {
         e.preventDefault();
-        if(!selectedWardId || !drawnCoords) return toast.error("Please select Ward and Draw Area on Map!");
+        if(!selectedWardId || !drawnCoords) return toast.error("Select Ward & Draw Working Area on Map!");
 
         setSaving(true);
         try {
@@ -105,14 +142,14 @@ const WorkAssignment = () => {
             <Toaster position="top-right" />
             <div className="p-4 space-y-6 text-left">
                 
-                <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm gap-4">
+                <header className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-emerald-400 shadow-lg">
+                        <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-emerald-400">
                             <Navigation size={24} />
                         </div>
                         <div>
                             <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Duty Allocation</h1>
-                            <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Smart GIS-Based Deployment</p>
+                            <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Smart GIS Deployment</p>
                         </div>
                     </div>
                 </header>
@@ -121,8 +158,8 @@ const WorkAssignment = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20}/>
                     <input 
                         type="text" 
-                        placeholder="Search personnel to assign duty..." 
-                        className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/10 shadow-sm"
+                        placeholder="Search personnel..." 
+                        className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl font-bold text-sm outline-none"
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
@@ -137,7 +174,7 @@ const WorkAssignment = () => {
                                     <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 font-black">{s.full_name_en.charAt(0)}</div>
                                     <div>
                                         <h3 className="font-black text-slate-800 text-sm uppercase leading-none">{s.full_name_en}</h3>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{s.role_name || 'Staff'}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{s.role_name || 'Staff'}</p>
                                     </div>
                                 </div>
                                 <button 
@@ -148,9 +185,9 @@ const WorkAssignment = () => {
                                 </button>
                             </div>
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Assigned Area:</p>
+                                <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Location Status:</p>
                                 <p className="text-[10px] font-bold text-slate-700 uppercase">
-                                    {s.current_task ? `Ward: ${s.current_task.split(':')[1]}` : "Unassigned - On Waiting"}
+                                    {s.current_task ? `Ward No: ${s.current_task.split(':')[1]}` : "Unassigned - On Waiting"}
                                 </p>
                             </div>
                         </div>
@@ -158,124 +195,72 @@ const WorkAssignment = () => {
                 </div>
             </div>
 
-            {/* --- GIS SMART ASSIGNMENT MODAL --- */}
             <AnimatePresence>
                 {showModal && (
                     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-6xl h-[90vh] rounded-[50px] shadow-2xl overflow-hidden flex flex-col border border-white/20">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-6xl h-[90vh] rounded-[50px] shadow-2xl overflow-hidden flex flex-col">
                             
-                            {/* Modal Header */}
                             <div className="p-8 border-b border-slate-100 bg-white flex justify-between items-center">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center">
-                                        <Globe size={24} />
-                                    </div>
+                                    <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center"><Globe size={24} /></div>
                                     <div>
-                                        <h2 className="text-xl font-black text-slate-800 uppercase italic">Setup Duty Point</h2>
-                                        <p className="text-[10px] font-bold text-emerald-600 uppercase">Member: {selectedStaff?.full_name_en}</p>
+                                        <h2 className="text-xl font-black text-slate-800 uppercase italic">Assign Duty Area</h2>
+                                        <p className="text-[10px] font-bold text-emerald-600 uppercase">Staff: {selectedStaff?.full_name_en}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setShowModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all">
-                                    <X size={24} />
-                                </button>
+                                <button onClick={() => setShowModal(false)} className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"><X size={20}/></button>
                             </div>
 
-                            {/* Modal Body (Split Screen) */}
                             <div className="flex-1 flex overflow-hidden">
-                                {/* Left Side: Controls */}
-                                <div className="w-1/3 p-8 space-y-6 overflow-y-auto border-r border-slate-50 bg-slate-50/30">
+                                {/* Left Controls */}
+                                <div className="w-1/3 p-8 space-y-6 overflow-y-auto bg-slate-50/50 border-r border-slate-100">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">1. Select Circle (अंचल चुनें)</label>
-                                        <select 
-                                            className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm"
-                                            value={selectedCircleId}
-                                            onChange={(e) => setSelectedCircleId(e.target.value)}
-                                        >
-                                            <option value="">Choose Circle / Zone...</option>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">1. Select Circle</label>
+                                        <select className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm" value={selectedCircleId} onChange={(e) => setSelectedCircleId(e.target.value)}>
+                                            <option value="">Choose Circle...</option>
                                             {circles.map(c => <option key={c.id} value={c.id}>{c.circle_name}</option>)}
                                         </select>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">2. Select Ward (वार्ड चुनें)</label>
-                                        <select 
-                                            disabled={!selectedCircleId}
-                                            className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm disabled:opacity-50"
-                                            value={selectedWardId}
-                                            onChange={(e) => setSelectedWardId(e.target.value)}
-                                        >
-                                            <option value="">Choose Targeted Ward...</option>
-                                            {filteredWards.map(w => <option key={w.id} value={w.id}>Ward No: {w.ward_no}</option>)}
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">2. Select Ward</label>
+                                        <select disabled={!selectedCircleId} className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm" value={selectedWardId} onChange={(e) => setSelectedWardId(e.target.value)}>
+                                            <option value="">Choose Ward...</option>
+                                            {filteredWards.map(w => <option key={w.id} value={w.id}>Ward: {w.ward_no}</option>)}
                                         </select>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">3. Select Road/Gali (सड़क चुनें)</label>
-                                        <select 
-                                            disabled={!selectedWardId}
-                                            className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm disabled:opacity-50"
-                                            value={selectedRoadId}
-                                            onChange={(e) => setSelectedRoadId(e.target.value)}
-                                        >
-                                            <option value="">Choose Exact Road...</option>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">3. Select Road (Location Marker)</label>
+                                        <select disabled={!selectedWardId} className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm" value={selectedRoadId} onChange={(e) => setSelectedRoadId(e.target.value)}>
+                                            <option value="">Choose Road/Gali...</option>
                                             {roads.map(r => <option key={r.id} value={r.id}>{r.road_name_en}</option>)}
                                         </select>
                                     </div>
 
-                                    <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 space-y-3">
-                                        <div className="flex items-center gap-3 text-emerald-700">
-                                            <MousePointer2 size={18}/>
-                                            <p className="text-[10px] font-black uppercase">Draw Working Area</p>
-                                        </div>
-                                        <p className="text-[10px] font-medium text-emerald-600 leading-relaxed uppercase">
-                                            Ward select karne ke baad map zoom ho jayega. Map par drawing tool se wo area draw karein jaha staff duty karega.
-                                        </p>
+                                    <div className="p-5 bg-emerald-50 rounded-3xl border border-emerald-100">
+                                        <p className="text-[10px] font-black text-emerald-800 uppercase mb-2 flex items-center gap-2"><MousePointer2 size={14}/> GIS Draw Mode</p>
+                                        <p className="text-[9px] font-medium text-emerald-600 uppercase leading-relaxed">Map par drawing tools ka use karke working zone draw karein. Ye mobile app par sync hoga.</p>
                                     </div>
 
-                                    <button 
-                                        onClick={handleAssignSubmit}
-                                        disabled={saving}
-                                        className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl flex items-center justify-center gap-3 mt-4"
-                                    >
-                                        {saving ? <Loader2 className="animate-spin"/> : <Save size={20}/>} 
-                                        Finalize Assignment
+                                    <button onClick={handleAssignSubmit} disabled={saving} className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 flex items-center justify-center gap-3 mt-4">
+                                        {saving ? <Loader2 className="animate-spin"/> : <Save size={20}/>} Finalize Allocation
                                     </button>
                                 </div>
 
-                                {/* Right Side: Map */}
+                                {/* Right Map (Geoman integrated) */}
                                 <div className="flex-1 relative bg-slate-100">
-                                    <MapContainer 
-                                        center={[25.5941, 85.1376]} // Default: Patna or your city
-                                        zoom={13} 
-                                        style={{ height: "100%", width: "100%" }}
-                                    >
+                                    <MapContainer center={[25.5941, 85.1376]} zoom={13} style={{ height: "100%", width: "100%" }}>
                                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                                         
-                                        {/* Show Ward Boundary if selected and exists */}
                                         {currentWardData?.boundary_coords && (
                                             <>
-                                                <Polygon 
-                                                    positions={JSON.parse(currentWardData.boundary_coords)}
-                                                    pathOptions={{ color: '#10b981', weight: 2, fillOpacity: 0.1 }}
-                                                />
+                                                <Polygon positions={JSON.parse(currentWardData.boundary_coords)} pathOptions={{ color: '#10b981', weight: 2, fillOpacity: 0.1 }} />
                                                 <ChangeView bounds={JSON.parse(currentWardData.boundary_coords)} />
                                             </>
                                         )}
 
-                                        <FeatureGroup>
-                                            <EditControl
-                                                position='topright'
-                                                onCreated={_onCreate}
-                                                draw={{
-                                                    rectangle: true,
-                                                    polyline: false,
-                                                    circle: false,
-                                                    circlemarker: false,
-                                                    marker: true,
-                                                    polygon: true,
-                                                }}
-                                            />
-                                        </FeatureGroup>
+                                        <GeomanTools onShapeCreated={setDrawnCoords} />
                                     </MapContainer>
                                 </div>
                             </div>
