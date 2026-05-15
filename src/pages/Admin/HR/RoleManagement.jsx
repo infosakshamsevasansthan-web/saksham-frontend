@@ -18,7 +18,6 @@ const RoleManagement = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newRoleName, setNewRoleName] = useState('');
 
-    // 🟢 Updated Menu List with Sub-menus
     const menuList = [
         { 
             id: 'dashboard', label: 'Dashboard Overview', icon: LayoutGrid,
@@ -75,19 +74,15 @@ const RoleManagement = () => {
         }
     };
 
-    // 🟢 Toggle logic for Parent and Sub-menus
     const togglePermission = (id, parentId = null) => {
         setPermissions(prev => {
             const newState = { ...prev, [id]: !prev[id] };
-            
-            // Agar parent toggle kiya, toh saare bacche bhi toggle honge
             if (!parentId) {
                 const parentMenu = menuList.find(m => m.id === id);
                 parentMenu?.submenus?.forEach(sub => {
                     newState[sub.id] = newState[id];
                 });
             } else {
-                // Agar koi bhi sub-menu on hai, toh parent on hona chahiye
                 if (newState[id]) newState[parentId] = true;
             }
             return newState;
@@ -107,6 +102,21 @@ const RoleManagement = () => {
         } catch (err) { toast.error("Update failed"); }
     };
 
+    // 🟢 YE RAHA AAPKA FUNCTION (Yahan place kiya hai)
+    const handleCreateRole = async (roleName) => {
+        try {
+            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/create', {
+                tenant_id: tenantId,
+                role_name: roleName
+            });
+            toast.success("New Role Created! 🚀");
+            fetchData(); // List refresh karne ke liye
+        } catch (err) {
+            console.error(err);
+            toast.error("Role creation failed");
+        }
+    };
+
     return (
         <CityLayout>
             <Toaster position="top-right" />
@@ -122,12 +132,21 @@ const RoleManagement = () => {
                             <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Role & Permission Hierarchy Master</p>
                         </div>
                     </div>
-                    <button onClick={() => {const name = prompt("Enter New Role Name (e.g. Supervisor):");if(name) handleCreateRole(name);}}className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl ..."><Plus size={16}/> Define New Role</button>
+                    {/* 🟢 Button handleCreateRole ko call kar raha hai */}
+                    <button 
+                        onClick={() => {
+                            const name = prompt("Enter New Role Name (e.g. Supervisor):");
+                            if(name) handleCreateRole(name);
+                        }}
+                        className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-slate-900 transition-all shadow-md"
+                    >
+                        <Plus size={16}/> Define New Role
+                    </button>
                 </header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     
-                    {/* 🟢 LEFT: ROLE SELECTOR */}
+                    {/* LEFT: ROLE SELECTOR */}
                     <div className="lg:col-span-4 space-y-4">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Select Unit Role</h3>
                         <div className="space-y-3">
@@ -152,7 +171,7 @@ const RoleManagement = () => {
                         </div>
                     </div>
 
-                    {/* 🟢 RIGHT: PERMISSION MATRIX */}
+                    {/* RIGHT: PERMISSION MATRIX */}
                     <div className="lg:col-span-8 bg-white rounded-[40px] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
                         <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <div>
@@ -180,7 +199,6 @@ const RoleManagement = () => {
                                         </div>
                                     </div>
 
-                                    {/* 🔵 Sub-menus Section */}
                                     {permissions[menu.id] && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                                             {menu.submenus.map(sub => (
