@@ -12,19 +12,38 @@ import toGeoJSON from 'togeojson';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
+// 🟢 Helper Component: Dropdown badalne par Map ko zoom karne ke liye
+const AutoZoomToWard = ({ selectedId, wards }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (selectedId && wards.length > 0) {
+      const targetWard = wards.find(w => String(w.id) === String(selectedId));
+      if (targetWard && targetWard.boundary_coords) {
+        try {
+          const raw = JSON.parse(targetWard.boundary_coords);
+          const latLngs = raw.map(c => [c[1], c[0]]); // Swap Lng/Lat to Lat/Lng
+          const bounds = L.latLngBounds(latLngs);
+          if (bounds.isValid()) {
+            map.flyToBounds(bounds, { padding: [100, 100], duration: 1.5 });
+          }
+        } catch (err) { console.error("Zoom Error", err); }
+      }
+    }
+  }, [selectedId, wards, map]);
+  return null;
+};
+
 const WardMapping = () => {
   const [wards, setWards] = useState([]);
   const [selectedWardId, setSelectedWardId] = useState('');
-  const [boundaryColor, setBoundaryColor] = useState('#10b981'); // Default Green for Saksham
+  const [boundaryColor, setBoundaryColor] = useState('#10b981');
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState('');
-  const [showBoundaries, setShowBoundaries] = useState(true); // 🟢 Show/Hide Toggle State
+  const [showBoundaries, setShowBoundaries] = useState(true); 
   const mapRef = useRef(null); 
   const tenantId = localStorage.getItem('tenantId') || "SAK-SIW-6925"; 
 
-  useEffect(() => {
-    fetchWards();
-  }, []);
+  useEffect(() => { fetchWards(); }, []);
 
   const fetchWards = async () => {
     try {
@@ -33,6 +52,7 @@ const WardMapping = () => {
     } catch (err) { toast.error("Database connection failed!"); }
   };
 
+  // 🟢 Plugins setup (Search + Geoman)
   const MapPlugins = () => {
     const map = useMap();
     useEffect(() => {
@@ -48,13 +68,12 @@ const WardMapping = () => {
       if (map.pm) {
         map.pm.addControls({
           position: 'topleft',
-          drawMarker: false, drawPolyline: false, drawCircle: false, drawCircleMarker: false,
+          drawMarker: false, drawPolyline: false, drawCircle: false,
           drawPolygon: true, drawRectangle: true, editMode: true, removalMode: true,
         });
-        map.pm.setPathOptions({ color: boundaryColor, fillColor: boundaryColor, fillOpacity: 0.3 });
       }
       return () => map.removeControl(searchControl);
-    }, [map, boundaryColor]);
+    }, [map]);
     return null;
   };
 
@@ -66,27 +85,18 @@ const WardMapping = () => {
     reader.onload = (event) => {
       try {
         const content = event.target.result;
-        let geoData;
-        if (file.name.endsWith('.kml')) {
-          const kml = new DOMParser().parseFromString(content, 'text/xml');
-          geoData = toGeoJSON.kml(kml);
-        } else {
-          geoData = JSON.parse(content);
-        }
-        const map = mapRef.current;
-        if (map && geoData) {
-          const geoLayer = L.geoJSON(geoData, {
-            style: { color: boundaryColor, fillColor: boundaryColor, fillOpacity: 0.3 }
-          });
-          const bounds = geoLayer.getBounds();
-          if (bounds.isValid()) map.flyToBounds(bounds, { padding: [50, 50] });
+        let geoData = file.name.endsWith('.kml') ? toGeoJSON.kml(new DOMParser().parseFromString(content, 'text/xml')) : JSON.parse(content);
+        
+        if (mapRef.current && geoData) {
+          const geoLayer = L.geoJSON(geoData);
+          mapRef.current.flyToBounds(geoLayer.getBounds(), { padding: [50, 50] });
           geoLayer.eachLayer(layer => {
-            layer.addTo(map);
+            layer.addTo(mapRef.current);
             if (layer.pm) layer.pm.enable();
           });
-          toast.success(`Imported: ${file.name}.`);
+          toast.success(`Imported: ${file.name}`);
         }
-      } catch (err) { toast.error("File error: Format not valid."); }
+      } catch (err) { toast.error("File error!"); }
     };
     reader.readAsText(file);
   };
@@ -94,23 +104,13 @@ const WardMapping = () => {
   const handleSave = async () => {
     if (!selectedWardId) return toast.error("Pehle Ward select karein!");
     const map = mapRef.current;
-    if (!map) return;
+    const allLayers = map.pm.getGeomanLayers().filter(l => !l.options.isSavedWard);
 
-    const allLayers = map.pm.getGeomanLayers(); 
-    const newLayers = allLayers.filter(l => !l.options.isSavedWard);
+    if (allLayers.length === 0) return toast.error("Koyi nayi drawing nahi mili!");
 
-    if (newLayers.length === 0) return toast.error("Map par koi nayi boundary nahi hai!");
-
-    const lastLayer = newLayers[newLayers.length - 1];
-    const geoJsonData = lastLayer.toGeoJSON();
-    
-    // 🟢 Coordinate swap logic fix (Lng/Lat to Lat/Lng)
-    let coords;
-    if (geoJsonData.geometry.type === 'Polygon') {
-        coords = geoJsonData.geometry.coordinates[0];
-    } else {
-        coords = geoJsonData.geometry.coordinates;
-    }
+    const lastLayer = allLayers[allLayers.length - 1];
+    const geoJson = lastLayer.toGeoJSON();
+    const coords = geoJson.geometry.type === 'Polygon' ? geoJson.geometry.coordinates[0] : geoJson.geometry.coordinates;
 
     setLoading(true);
     try {
@@ -118,11 +118,11 @@ const WardMapping = () => {
         ward_id: selectedWardId,
         boundary_coords: JSON.stringify(coords)
       });
-      toast.success("Ward Boundary saved!");
+      toast.success("Saved successfully!");
       setFileName('');
-      newLayers.forEach(l => map.removeLayer(l));
+      allLayers.forEach(l => map.removeLayer(l));
       fetchWards();
-    } catch (err) { toast.error("Database save failed."); }
+    } catch (err) { toast.error("Save failed."); }
     finally { setLoading(false); }
   };
 
@@ -132,127 +132,90 @@ const WardMapping = () => {
       <div className="h-[calc(100vh-80px)] flex flex-col gap-4 p-4 text-left">
         
         {/* Header Section */}
-        <div className="bg-white p-5 rounded-[30px] shadow-sm border border-slate-100 flex items-center justify-between gap-4">
+        <div className="bg-white p-5 rounded-[30px] shadow-sm border border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="bg-slate-900 p-3 rounded-2xl text-emerald-400 shadow-lg">
-               <MapIcon size={24}/>
-            </div>
+            <div className="bg-slate-900 p-3 rounded-2xl text-emerald-400 shadow-lg"><MapIcon size={24}/></div>
             <div>
-               <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-none italic">GIS Boundary Center</h1>
-               <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-1">Tenant Control: {tenantId}</p>
+               <h1 className="text-xl font-black text-slate-800 uppercase leading-none italic">GIS Boundary Center</h1>
+               <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1 tracking-widest">{tenantId}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-             {/* 🟢 Layer Toggle Button */}
              <button 
                 onClick={() => setShowBoundaries(!showBoundaries)}
-                className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 transition-all shadow-sm ${showBoundaries ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-400'}`}
+                className={`px-5 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 transition-all shadow-sm ${showBoundaries ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
              >
                 {showBoundaries ? <Eye size={16}/> : <EyeOff size={16}/>} 
                 {showBoundaries ? 'Boundaries Visible' : 'Boundaries Hidden'}
              </button>
 
-             <select 
-               className="bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-3 font-bold text-slate-700 outline-none focus:border-emerald-500 min-w-[200px]"
-               value={selectedWardId}
-               onChange={(e) => setSelectedWardId(e.target.value)}
-             >
+             <select className="bg-slate-50 border-2 border-slate-100 rounded-2xl px-6 py-3 font-bold text-slate-700 min-w-[200px]" value={selectedWardId} onChange={(e) => setSelectedWardId(e.target.value)}>
                 <option value="">Select Ward Number...</option>
                 {wards.map(w => <option key={w.id} value={w.id}>Ward {w.ward_no} - {w.ward_name}</option>)}
              </select>
 
-             <input type="color" value={boundaryColor} onChange={(e) => setBoundaryColor(e.target.value)} className="w-10 h-10 rounded-xl cursor-pointer bg-white p-1 border border-slate-100" />
+             <input type="color" value={boundaryColor} onChange={(e) => setBoundaryColor(e.target.value)} className="w-10 h-10 rounded-xl cursor-pointer" />
 
-             <div className="flex items-center gap-2">
-                <label className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-5 py-3 rounded-2xl font-black text-[10px] uppercase cursor-pointer flex items-center gap-2 transition-all border border-blue-100">
-                    <FileJson size={16}/> {fileName ? 'Change File' : 'Import KML'}
-                    <input type="file" className="hidden" accept=".json,.geojson,.kml" onChange={handleFileUpload} />
-                </label>
-                {fileName && (
-                  <div className="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">
-                     <span className="text-[9px] font-black text-slate-500 uppercase truncate max-w-[100px]">{fileName}</span>
-                     <button onClick={() => {setFileName(''); mapRef.current.pm.getGeomanLayers().forEach(l => !l.options.isSavedWard && mapRef.current.removeLayer(l))}}>
-                        <XCircle size={14} className="text-red-400 hover:text-red-600" />
-                     </button>
-                  </div>
-                )}
-             </div>
+             <label className="bg-blue-50 text-blue-600 px-5 py-3 rounded-2xl font-black text-[10px] uppercase cursor-pointer flex items-center gap-2 border border-blue-100">
+                <FileJson size={16}/> Import KML
+                <input type="file" className="hidden" accept=".json,.geojson,.kml" onChange={handleFileUpload} />
+             </label>
 
-             <button 
-               onClick={handleSave}
-               disabled={loading || !selectedWardId}
-               className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-xl disabled:opacity-50"
-             >
+             <button onClick={handleSave} disabled={loading || !selectedWardId} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all">
                 {loading ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>}
-                {loading ? 'Processing...' : 'Save Boundary'}
+                Save Boundary
              </button>
           </div>
         </div>
 
-        {/* Map Container */}
+        {/* Map */}
         <div className="flex-1 bg-slate-200 rounded-[40px] overflow-hidden border-8 border-white shadow-2xl relative">
-           <MapContainer center={[26.222, 84.36]} zoom={14} className="h-full w-full" zoomControl={false}>
-              <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="Google Satellite" />
+           <MapContainer center={[26.22, 84.36]} zoom={14} className="h-full w-full" zoomControl={false}>
+              <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="Google" />
               <MapPlugins />
+              
+              {/* 🟢 Logic components */}
+              <AutoZoomToWard selectedId={selectedWardId} wards={wards} />
 
-              {/* 🟢 SAVED WARDS RENDERING WITH TOGGLE */}
               {showBoundaries && wards.map(ward => {
                 if(!ward.boundary_coords) return null;
-                
                 try {
-                  const rawCoords = JSON.parse(ward.boundary_coords);
-                  // Lat/Lng validation & swap: [lng, lat] -> [lat, lng]
-                  const positions = rawCoords.map(c => [c[1], c[0]]);
-
+                  const positions = JSON.parse(ward.boundary_coords).map(c => [c[1], c[0]]);
                   return (
                     <Polygon 
-                      key={ward.id} 
-                      positions={positions} 
+                      key={ward.id} positions={positions} 
                       eventHandlers={{ click: () => setSelectedWardId(ward.id.toString()) }}
                       pathOptions={{ 
-                        color: ward.id == selectedWardId ? '#f59e0b' : 'white', 
-                        fillColor: ward.id == selectedWardId ? '#f59e0b' : '#10b981', 
-                        fillOpacity: ward.id == selectedWardId ? 0.5 : 0.2, 
-                        weight: ward.id == selectedWardId ? 4 : 2,
-                        isSavedWard: true // Geoman identification
+                        color: String(ward.id) === String(selectedWardId) ? '#f59e0b' : 'white', 
+                        fillColor: String(ward.id) === String(selectedWardId) ? '#f59e0b' : '#10b981', 
+                        fillOpacity: String(ward.id) === String(selectedWardId) ? 0.5 : 0.2, 
+                        weight: String(ward.id) === String(selectedWardId) ? 4 : 2,
+                        isSavedWard: true 
                       }}
                     >
-                       <Tooltip sticky direction="center" className="ward-tooltip">
-                          Ward {ward.ward_no}
-                       </Tooltip>
+                       <Tooltip sticky direction="center" className="ward-tooltip">Ward {ward.ward_no}</Tooltip>
                     </Polygon>
                   );
                 } catch (e) { return null; }
               })}
            </MapContainer>
 
-           {/* Stats Widget */}
+           {/* Progress Widget */}
            <div className="absolute bottom-10 left-10 z-[1000] bg-white/90 backdrop-blur-md p-5 rounded-[28px] border border-white shadow-2xl min-w-[220px]">
-              <div className="flex items-center gap-3 mb-3">
-                 <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
-                    <Target size={18} />
-                 </div>
-                 <span className="text-[11px] font-black uppercase text-slate-800 tracking-widest italic">Live GIS Progress</span>
+              <div className="flex items-center gap-2 mb-2"><Target size={16} className="text-emerald-500" /><span className="text-[10px] font-black uppercase text-slate-800 tracking-widest italic">Live Mapping</span></div>
+              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-1">
+                 <div className="h-full bg-emerald-500" style={{ width: `${(wards.filter(w => w.boundary_coords).length / (wards.length || 1)) * 100}%` }} />
               </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-2">
-                 <div 
-                    className="h-full bg-emerald-500 transition-all duration-1000" 
-                    style={{ width: `${(wards.filter(w => w.boundary_coords).length / wards.length) * 100}%` }}
-                 />
-              </div>
-              <p className="text-[10px] font-black text-slate-500 uppercase">
-                Mapped: <span className="text-emerald-600">{wards.filter(w => w.boundary_coords).length}</span> / {wards.length} Wards
-              </p>
+              <p className="text-[10px] font-black text-slate-500 uppercase">Mapped: {wards.filter(w => w.boundary_coords).length} / {wards.length}</p>
            </div>
         </div>
       </div>
 
       <style>{`
-        .ward-tooltip { background: rgba(0,0,0,0.5) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 8px !important; color: white !important; font-weight: 900; font-size: 12px; padding: 4px 8px !important; text-transform: uppercase; }
-        .leaflet-geosearch-bar { position: absolute; top: 20px; right: 20px; z-index: 1000; width: 320px; }
-        .leaflet-geosearch-bar form { border-radius: 16px !important; border: none !important; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important; overflow: hidden; }
-        .leaflet-geosearch-bar input { height: 45px !important; font-weight: bold; }
+        .ward-tooltip { background: rgba(0,0,0,0.6) !important; border: none !important; color: white !important; font-weight: 900; font-size: 11px; padding: 4px 8px !important; border-radius: 6px; text-transform: uppercase; }
+        .leaflet-geosearch-bar { position: absolute; top: 20px; right: 20px; z-index: 1000; width: 300px; }
+        .leaflet-geosearch-bar form { border-radius: 12px !important; border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; overflow: hidden; }
       `}</style>
     </CityLayout>
   );
