@@ -1,85 +1,122 @@
 import React, { useState, useEffect } from 'react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
-import { Briefcase, MapPin, Users, Search, X, CheckCircle2, Loader2, Layers, Navigation, AlertCircle, Settings2 } from 'lucide-react';
+import { 
+    Briefcase, MapPin, Users, Search, X, CheckCircle2, 
+    Loader2, Layers, Navigation, Settings2, Save, MousePointer2, 
+    Map as MapIcon, Globe 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
+// 🟢 Map Components
+import { MapContainer, TileLayer, Polygon, FeatureGroup, useMap } from 'react-leaflet';
+import { EditControl } from "react-leaflet-draw";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+
 const WorkAssignment = () => {
     const [staffList, setStaffList] = useState([]);
-    const [wards, setWards] = useState([]);
     const [circles, setCircles] = useState([]);
+    const [allWards, setAllWards] = useState([]);
+    const [roads, setRoads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // Assignment States
+    // Form States
     const [selectedCircleId, setSelectedCircleId] = useState('');
     const [selectedWardId, setSelectedWardId] = useState('');
+    const [selectedRoadId, setSelectedRoadId] = useState('');
+    const [drawnCoords, setDrawnCoords] = useState(null);
+    const [saving, setSaving] = useState(false);
     
     const tenantId = localStorage.getItem('tenantId');
 
+    // 🟢 Fetch Data
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [staffRes, wardRes, circleRes] = await Promise.all([
+            const [staffRes, circleRes, wardRes] = await Promise.all([
                 axios.get(`https://saksham-backend-9719.onrender.com/api/admin/work-assignment/list/${tenantId}`),
-                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/wards/${tenantId}`),
-                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/circles/${tenantId}`)
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/circles/${tenantId}`),
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/wards/${tenantId}`)
             ]);
             setStaffList(staffRes.data.data || []);
-            setWards(wardRes.data.data || []);
             setCircles(circleRes.data.data || []);
+            setAllWards(wardRes.data.data || []);
         } catch (err) { toast.error("Database connection failed"); }
         finally { setLoading(false); }
     };
 
     useEffect(() => { fetchData(); }, [tenantId]);
 
-    // 🟢 Logic: Filter Wards based on selected Circle
-    const filteredWards = wards.filter(w => w.circle_id == selectedCircleId);
+    // 🟢 Fetch Roads when Ward is selected
+    useEffect(() => {
+        if (selectedWardId) {
+            axios.get(`https://saksham-backend-9719.onrender.com/api/admin/roads-by-ward/${tenantId}/${selectedWardId}`)
+                .then(res => setRoads(res.data.data || []))
+                .catch(() => setRoads([]));
+        }
+    }, [selectedWardId]);
+
+    const filteredWards = allWards.filter(w => w.circle_id == selectedCircleId);
+    const currentWardData = allWards.find(w => w.id == selectedWardId);
+
+    // 🟢 Map Zoom Logic
+    function ChangeView({ bounds }) {
+        const map = useMap();
+        if (bounds) map.fitBounds(bounds);
+        return null;
+    }
+
+    const _onCreate = (e) => {
+        const { layerType, layer } = e;
+        if (layerType === "polygon" || layerType === "rectangle") {
+            const coords = layer.getLatLngs();
+            setDrawnCoords(JSON.stringify(coords));
+        }
+    };
 
     const handleAssignSubmit = async (e) => {
         e.preventDefault();
-        if(!selectedWardId) return toast.error("Please select a ward!");
+        if(!selectedWardId || !drawnCoords) return toast.error("Please select Ward and Draw Area on Map!");
 
+        setSaving(true);
         try {
-            const res = await axios.post('https://saksham-backend-9719.onrender.com/api/admin/work-assignment/save', {
+            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/work-assignment/save', {
                 tenant_id: tenantId,
                 staff_id: selectedStaff.id,
-                assign_type: 'WARD', // Defaulting to WARD level
-                target_id: selectedWardId
+                circle_id: selectedCircleId,
+                ward_id: selectedWardId,
+                road_id: selectedRoadId,
+                area_coords: drawnCoords
             });
-            if(res.data.success) {
-                toast.success("Duty Mapping Established! 🔗");
-                setShowModal(false);
-                setSelectedCircleId('');
-                setSelectedWardId('');
-                fetchData();
-            }
+            toast.success("Duty Mapping Established! 🔗");
+            setShowModal(false);
+            fetchData();
         } catch (err) { toast.error("Assignment Error"); }
+        finally { setSaving(false); }
     };
 
     return (
         <CityLayout>
             <Toaster position="top-right" />
-            <div className="p-4 space-y-6 text-left animate-in fade-in duration-500">
+            <div className="p-4 space-y-6 text-left">
                 
-                {/* Header Section */}
-                <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm gap-4">
+                <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-emerald-400 shadow-lg">
-                            <Briefcase size={24} />
+                            <Navigation size={24} />
                         </div>
                         <div>
                             <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight">Duty Allocation</h1>
-                            <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Circle & Ward Wise Deployment</p>
+                            <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest mt-1">Smart GIS-Based Deployment</p>
                         </div>
                     </div>
                 </header>
 
-                {/* Search Bar */}
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20}/>
                     <input 
@@ -90,17 +127,14 @@ const WorkAssignment = () => {
                     />
                 </div>
 
-                {/* Staff Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {loading ? (
                         <div className="col-span-full py-20 text-center"><Loader2 className="animate-spin mx-auto text-emerald-500" size={40}/></div>
                     ) : staffList.filter(s => s.full_name_en.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (
-                        <motion.div whileHover={{ y: -5 }} key={s.id} className="bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative overflow-hidden group">
-                            <div className={`absolute top-0 left-0 w-2 h-full ${s.current_task ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-                            
+                        <div key={s.id} className="bg-white p-6 rounded-[35px] border border-slate-200 shadow-sm relative group overflow-hidden">
                             <div className="flex justify-between items-start mb-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 font-black text-sm">{s.full_name_en.charAt(0)}</div>
+                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 font-black">{s.full_name_en.charAt(0)}</div>
                                     <div>
                                         <h3 className="font-black text-slate-800 text-sm uppercase leading-none">{s.full_name_en}</h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{s.role_name || 'Staff'}</p>
@@ -108,93 +142,147 @@ const WorkAssignment = () => {
                                 </div>
                                 <button 
                                     onClick={() => { setSelectedStaff(s); setShowModal(true); }}
-                                    className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-sm active:scale-90"
+                                    className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-lg active:scale-90"
                                 >
                                     <Settings2 size={18}/>
                                 </button>
                             </div>
-
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Location Map:</p>
-                                {s.current_task ? (
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-emerald-500 border border-slate-100 shadow-sm"><MapPin size={16}/></div>
-                                        <p className="text-[10px] font-black text-slate-700 uppercase leading-none">
-                                            Ward No: {s.current_task.split(':')[1]}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <p className="text-[10px] font-bold text-slate-300 uppercase italic">Unassigned - On Waiting</p>
-                                )}
+                                <p className="text-[8px] font-black text-slate-400 uppercase mb-2">Assigned Area:</p>
+                                <p className="text-[10px] font-bold text-slate-700 uppercase">
+                                    {s.current_task ? `Ward: ${s.current_task.split(':')[1]}` : "Unassigned - On Waiting"}
+                                </p>
                             </div>
-                        </motion.div>
+                        </div>
                     ))}
                 </div>
             </div>
 
-            {/* --- HIERARCHY SETUP MODAL --- */}
+            {/* --- GIS SMART ASSIGNMENT MODAL --- */}
             <AnimatePresence>
                 {showModal && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden text-left border border-slate-200">
-                            <div className="p-8 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                                <div>
-                                    <h2 className="text-xl font-black text-slate-800 uppercase italic">Setup Duty Point</h2>
-                                    <p className="text-emerald-600 font-bold text-[10px] uppercase tracking-widest mt-1">Member: {selectedStaff?.full_name_en}</p>
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-6xl h-[90vh] rounded-[50px] shadow-2xl overflow-hidden flex flex-col border border-white/20">
+                            
+                            {/* Modal Header */}
+                            <div className="p-8 border-b border-slate-100 bg-white flex justify-between items-center">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center">
+                                        <Globe size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-800 uppercase italic">Setup Duty Point</h2>
+                                        <p className="text-[10px] font-bold text-emerald-600 uppercase">Member: {selectedStaff?.full_name_en}</p>
+                                    </div>
                                 </div>
-                                <button onClick={() => setShowModal(false)} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 shadow-sm font-black">X</button>
+                                <button onClick={() => setShowModal(false)} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all">
+                                    <X size={24} />
+                                </button>
                             </div>
 
-                            <form onSubmit={handleAssignSubmit} className="p-8 space-y-6">
-                                {/* 1. CIRCLE DROPDOWN */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-2">
-                                        <Layers size={14}/> 1. Select Circle (अंचल चुनें)
-                                    </label>
-                                    <select 
-                                        required 
-                                        className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-emerald-500/20 rounded-2xl outline-none font-bold text-sm text-slate-700 appearance-none" 
-                                        value={selectedCircleId}
-                                        onChange={(e) => { setSelectedCircleId(e.target.value); setSelectedWardId(''); }} // Reset ward on circle change
+                            {/* Modal Body (Split Screen) */}
+                            <div className="flex-1 flex overflow-hidden">
+                                {/* Left Side: Controls */}
+                                <div className="w-1/3 p-8 space-y-6 overflow-y-auto border-r border-slate-50 bg-slate-50/30">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">1. Select Circle (अंचल चुनें)</label>
+                                        <select 
+                                            className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm"
+                                            value={selectedCircleId}
+                                            onChange={(e) => setSelectedCircleId(e.target.value)}
+                                        >
+                                            <option value="">Choose Circle / Zone...</option>
+                                            {circles.map(c => <option key={c.id} value={c.id}>{c.circle_name}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">2. Select Ward (वार्ड चुनें)</label>
+                                        <select 
+                                            disabled={!selectedCircleId}
+                                            className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm disabled:opacity-50"
+                                            value={selectedWardId}
+                                            onChange={(e) => setSelectedWardId(e.target.value)}
+                                        >
+                                            <option value="">Choose Targeted Ward...</option>
+                                            {filteredWards.map(w => <option key={w.id} value={w.id}>Ward No: {w.ward_no}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">3. Select Road/Gali (सड़क चुनें)</label>
+                                        <select 
+                                            disabled={!selectedWardId}
+                                            className="w-full p-4 bg-white rounded-2xl border border-slate-200 font-bold text-sm disabled:opacity-50"
+                                            value={selectedRoadId}
+                                            onChange={(e) => setSelectedRoadId(e.target.value)}
+                                        >
+                                            <option value="">Choose Exact Road...</option>
+                                            {roads.map(r => <option key={r.id} value={r.id}>{r.road_name_en}</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 space-y-3">
+                                        <div className="flex items-center gap-3 text-emerald-700">
+                                            <MousePointer2 size={18}/>
+                                            <p className="text-[10px] font-black uppercase">Draw Working Area</p>
+                                        </div>
+                                        <p className="text-[10px] font-medium text-emerald-600 leading-relaxed uppercase">
+                                            Ward select karne ke baad map zoom ho jayega. Map par drawing tool se wo area draw karein jaha staff duty karega.
+                                        </p>
+                                    </div>
+
+                                    <button 
+                                        onClick={handleAssignSubmit}
+                                        disabled={saving}
+                                        className="w-full bg-slate-900 text-white p-5 rounded-3xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-xl flex items-center justify-center gap-3 mt-4"
                                     >
-                                        <option value="">Choose Circle / Zone...</option>
-                                        {circles.map(c => <option key={c.id} value={c.id}>{c.circle_name}</option>)}
-                                    </select>
+                                        {saving ? <Loader2 className="animate-spin"/> : <Save size={20}/>} 
+                                        Finalize Assignment
+                                    </button>
                                 </div>
 
-                                {/* 2. WARD DROPDOWN (Filtered) */}
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-2">
-                                        <MapPin size={14}/> 2. Select Ward (वार्ड चुनें)
-                                    </label>
-                                    <select 
-                                        required 
-                                        disabled={!selectedCircleId}
-                                        className={`w-full p-4 border-2 border-transparent rounded-2xl outline-none font-bold text-sm text-slate-700 appearance-none transition-all ${!selectedCircleId ? 'bg-slate-100 opacity-50' : 'bg-slate-50 focus:border-emerald-500/20'}`} 
-                                        value={selectedWardId}
-                                        onChange={(e) => setSelectedWardId(e.target.value)}
+                                {/* Right Side: Map */}
+                                <div className="flex-1 relative bg-slate-100">
+                                    <MapContainer 
+                                        center={[25.5941, 85.1376]} // Default: Patna or your city
+                                        zoom={13} 
+                                        style={{ height: "100%", width: "100%" }}
                                     >
-                                        <option value="">Choose Targeted Ward...</option>
-                                        {filteredWards.map(w => <option key={w.id} value={w.id}>Ward No: {w.ward_no} - {w.ward_name}</option>)}
-                                    </select>
-                                </div>
+                                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                        
+                                        {/* Show Ward Boundary if selected and exists */}
+                                        {currentWardData?.boundary_coords && (
+                                            <>
+                                                <Polygon 
+                                                    positions={JSON.parse(currentWardData.boundary_coords)}
+                                                    pathOptions={{ color: '#10b981', weight: 2, fillOpacity: 0.1 }}
+                                                />
+                                                <ChangeView bounds={JSON.parse(currentWardData.boundary_coords)} />
+                                            </>
+                                        )}
 
-                                <div className="bg-emerald-50 p-5 rounded-3xl border border-emerald-100 flex gap-4">
-                                    <CheckCircle2 size={20} className="text-emerald-500 shrink-0 mt-1" />
-                                    <p className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider leading-relaxed">
-                                        Note: Finalizing this mapping will sync the staff member's mobile app to work only within the selected Circle and Ward.
-                                    </p>
+                                        <FeatureGroup>
+                                            <EditControl
+                                                position='topright'
+                                                onCreated={_onCreate}
+                                                draw={{
+                                                    rectangle: true,
+                                                    polyline: false,
+                                                    circle: false,
+                                                    circlemarker: false,
+                                                    marker: true,
+                                                    polygon: true,
+                                                }}
+                                            />
+                                        </FeatureGroup>
+                                    </MapContainer>
                                 </div>
-
-                                <button type="submit" className="w-full bg-slate-900 text-white p-5 rounded-[28px] font-black uppercase text-xs tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl flex items-center justify-center gap-3 mt-4 active:scale-95">
-                                    Finalize Duty Assignment
-                                </button>
-                            </form>
+                            </div>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
-
         </CityLayout>
     );
 };
