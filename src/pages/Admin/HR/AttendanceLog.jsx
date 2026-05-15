@@ -3,7 +3,7 @@ import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import { 
     Clock, User, Search, X, Loader2, ChevronRight, 
     Calendar, MapPin, Camera, UserCheck, UserX, UserMinus, 
-    Filter, RefreshCcw, ExternalLink, Award
+    Filter, RefreshCcw, ExternalLink, Award, CalendarRange
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
