@@ -64,6 +64,8 @@ import FuelReport from './pages/Admin/Reports/FuelReport';
 import SystemConfig from './pages/Admin/Settings/SystemConfig';
 import DeviceControl from './pages/Admin/Settings/DeviceControl';
 import StaffGeofence from './pages/Admin/Settings/StaffGeofence';
+import MaterialRecoveryFacility from './pages/Admin/SWM/MaterialRecoveryFacility';
+
 
 
 // --- Components ---
@@ -156,6 +158,7 @@ function App() {
           <Route path="/admin/swm-logs" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><D2DCollectionLogs /></ProtectedRoute>} />
           <Route path="/admin/routes" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><RouteOptimization /></ProtectedRoute>} />
           <Route path="/admin/processing" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><WasteProcessingPlant /></ProtectedRoute>} />
+          <Route path="/admin/mrf" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><MaterialRecoveryFacility /></ProtectedRoute>} />
 
           {/* 7. Grievance & Reports */}
           <Route path="/admin/complaints" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><GrievanceCenter /></ProtectedRoute>} />
