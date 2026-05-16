@@ -105,7 +105,7 @@ const CitySidebar = ({ isOpen }) => {
         { label: 'D2D Collection Logs', path: '/admin/swm-logs' },
         { label: 'Route Optimization', path: '/admin/routes' },
         { label: 'Waste Processing Plant', path: '/admin/processing' },
-         { label: MRF Intelligence', path: '/admin/mrf' }
+         { label: 'MRF Intelligence', path: '/admin/mrf' }
       ]
     },
     { id: 'grievance', label: 'Grievance Redressal', icon: AlertCircle, path: '/admin/complaints' },
