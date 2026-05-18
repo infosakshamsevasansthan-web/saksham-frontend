@@ -15,7 +15,7 @@ import { toast, Toaster } from 'react-hot-toast';
 const getWalkingIcon = (gender) => {
     const g = gender ? gender.toLowerCase() : 'male';
     const iconUrl = g === 'female' 
-        ? '/assets/staff--walkingf.gif' 
+        ? '/assets/staff-walkingf.gif' 
         : '/assets/staff-walk.gif';
 
     return new L.Icon({
@@ -240,7 +240,7 @@ const StaffLiveTracking = () => {
                     <div className="absolute bottom-10 left-10 z-[1000] bg-slate-900/80 backdrop-blur-2xl p-6 rounded-[3rem] border border-white/10 shadow-2xl flex items-center gap-8">
                         <LegendItem src="/assets/staff-walk.gif" label="Male Unit" />
                         <div className="w-px h-10 bg-white/10" />
-                        <LegendItem src="/assets/staff--walkingf.gif" label="Female Unit" />
+                        <LegendItem src="/assets/staff-walkingf.gif" label="Female Unit" />
                     </div>
                 </div>
             </div>
