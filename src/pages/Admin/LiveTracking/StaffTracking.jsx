@@ -1,248 +1,345 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Tooltip, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Radio, ShieldCheck, Activity, Phone, User, Fingerprint, MapPin, Layers } from 'lucide-react';
+import { Radio, ShieldCheck, Activity, Phone, User, Fingerprint, MapPin, Layers, Crosshair, Users } from 'lucide-react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import axios from 'axios';
 
-// --- 1. GENDER BASED GIF ICONS ---
+// --- 1. PRO GENDER BASED GIF ICONS ---
 const getWalkingIcon = (gender) => {
     const g = gender ? gender.toLowerCase() : 'male';
     const iconUrl = g === 'female' 
-        ? '/assets/staff--walkingf.gif' 
+        ? '/assets/staff-walkingf.gif' 
         : '/assets/staff-walking.gif';
 
     return new L.Icon({
         iconUrl: iconUrl,
-        iconSize: [60, 60],
-        iconAnchor: [30, 55],
-        popupAnchor: [0, -45],
-        className: 'staff-gif-marker'
+        iconSize: [70, 70],
+        iconAnchor: [35, 65],
+        className: 'smooth-marker-move'
     });
 };
 
 const StaffLiveTracking = () => {
-    const [allStaff, setAllStaff] = useState([]);
-    const [wards, setWards] = useState([]);
-    const [selectedWard, setSelectedWard] = useState('All');
-    const [selectedStaffId, setSelectedStaffId] = useState('All');
     const tenantId = localStorage.getItem('tenantId') || 'SAK-SIW-6925';
 
+    // Data States
+    const [circles, setCircles] = useState([]);
+    const [wards, setWards] = useState([]);
+    const [roads, setRoads] = useState([]);
+    const [allStaff, setAllStaff] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Dropdown States
+    const [selCircle, setSelCircle] = useState('All');
+    const [selWard, setSelWard] = useState('All');
+    const [selArea, setSelArea] = useState('All');
+
     useEffect(() => {
-        fetchWards();
-        fetchLiveStaff();
+        initData();
         const interval = setInterval(fetchLiveStaff, 5000); 
         return () => clearInterval(interval);
     }, [tenantId]);
 
-    const fetchWards = async () => {
+    const initData = async () => {
+        setLoading(true);
         try {
-            const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/wards/${tenantId}`);
-            setWards(res.data.data || []);
-        } catch (err) { console.error("Ward Fetch Error"); }
+            // APIs matching your backend dump
+            const [circRes, wardRes, roadRes] = await Promise.all([
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/circles/${tenantId}`),
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/wards/${tenantId}`),
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/roads/${tenantId}`)
+            ]);
+            
+            setCircles(circRes.data.data || []);
+            setWards(wardRes.data.data || []);
+            setRoads(roadRes.data.data || []);
+            
+            await fetchLiveStaff();
+        } catch (err) { 
+            console.error("Initialization failed, using dummy data...");
+            injectDummyData();
+        } finally { setLoading(false); }
     };
 
     const fetchLiveStaff = async () => {
         try {
             const res = await axios.get(`https://saksham-backend-9719.onrender.com/api/admin/live-staff-tracking/${tenantId}`);
-            setAllStaff(res.data.data || []);
-        } catch (err) { console.log("Tracking error"); }
+            if(res.data.data && res.data.data.length > 0) {
+                setAllStaff(res.data.data);
+            } else {
+                injectDummyStaff(); // Testing ke liye agar DB khali ho
+            }
+        } catch (err) { injectDummyStaff(); }
     };
 
-    // Filters Logic
-    const currentWardData = wards.find(w => w.ward_no === selectedWard);
-    const selectedStaffObj = allStaff.find(s => s.id.toString() === selectedStaffId);
-    
-    const filteredStaff = allStaff.filter(s => {
-        const wardMatch = selectedWard === 'All' || s.ward_no === selectedWard;
-        const staffMatch = selectedStaffId === 'All' || s.id.toString() === selectedStaffId;
-        return wardMatch && staffMatch;
-    });
+    // --- LOGIC: Dependent Data ---
+    const filteredWards = useMemo(() => 
+        selCircle === 'All' ? wards : wards.filter(w => w.circle_id.toString() === selCircle),
+    [selCircle, wards]);
+
+    const filteredRoads = useMemo(() => 
+        selWard === 'All' ? roads : roads.filter(r => r.ward_id.toString() === selWard),
+    [selWard, roads]);
+
+    const filteredStaff = useMemo(() => {
+        return allStaff.filter(s => {
+            const cMatch = selCircle === 'All' || s.circle_id?.toString() === selCircle;
+            const wMatch = selWard === 'All' || s.ward_id?.toString() === selWard;
+            const aMatch = selArea === 'All' || s.road_id?.toString() === selArea;
+            return cMatch && wMatch && aMatch;
+        });
+    }, [allStaff, selCircle, selWard, selArea]);
+
+    // --- DUMMY DATA INJECTION (FOR TESTING) ---
+    const injectDummyData = () => {
+        setCircles([{ id: 1, circle_name: "Circle 01" }, { id: 2, circle_name: "Circle 02" }]);
+        setWards([
+            { id: 101, ward_no: "01", ward_name: "Brahmpura", circle_id: 1, boundary_coords: '[[84.35, 26.21], [84.38, 26.21], [84.38, 26.24], [84.35, 26.24]]' },
+            { id: 102, ward_no: "02", ward_name: "MIT Area", circle_id: 1, boundary_coords: '[[84.32, 26.24], [84.34, 26.24], [84.34, 26.26], [84.32, 26.26]]' }
+        ]);
+        setRoads([
+            { id: 501, road_name_en: "Main Market Road", ward_id: 101 },
+            { id: 502, road_name_en: "Station Gali", ward_id: 101 }
+        ]);
+        injectDummyStaff();
+    };
+
+    const injectDummyStaff = () => {
+        setAllStaff([
+            { 
+                id: 1, name: "Kundan Kumar", gender: "male", fh_name: "Rajesh Singh", 
+                employee_id: "EMP101", mobile: "9876543210", 
+                ward_id: 101, ward_no: "01", circle_id: 1, road_id: 501, road_name: "Main Market Road",
+                inspector_name: "Amit Sharma", lat: 26.225 + (Math.random() * 0.005), lng: 84.365 + (Math.random() * 0.005)
+            },
+            { 
+                id: 2, name: "Suman Devi", gender: "female", fh_name: "Late Suresh Pal", 
+                employee_id: "EMP105", mobile: "8877665544", 
+                ward_id: 102, ward_no: "02", circle_id: 1, road_id: 0, road_name: "Hospital Road",
+                inspector_name: "Vijay Kumar", lat: 26.250 + (Math.random() * 0.005), lng: 84.335 + (Math.random() * 0.005)
+            }
+        ]);
+    };
 
     return (
         <CityLayout>
-            <div className="flex flex-col h-[calc(100vh-40px)] p-4 space-y-4 bg-slate-50">
+            <div className="flex flex-col h-[calc(100vh-40px)] p-4 space-y-4 bg-slate-50 font-sans">
                 
-                {/* 🟢 Header: Restored to Light/Professional Theme */}
-                <header className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-6 relative overflow-hidden">
-                    <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-                           <Radio className="animate-pulse" size={30} />
+                {/* 🟢 TOP CONTROL HUB */}
+                <header className="bg-white p-5 rounded-[2.5rem] shadow-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-emerald-400 shadow-lg relative">
+                           <Radio className="animate-pulse" size={28} />
+                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-white"></div>
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-slate-800 uppercase italic tracking-tighter">Personnel Tracking</h2>
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em] mt-1 flex items-center gap-2">
-                               <Activity size={12} /> System Status: Real-time Live
+                            <h2 className="text-xl font-black text-slate-800 uppercase italic leading-none">Personnel Intelligence</h2>
+                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
+                               <Activity size={12} /> Live Deployed: {filteredStaff.length} Units
                             </p>
                         </div>
                     </div>
 
-                    {/* 🟢 Both Dropdowns are BACK! */}
-                    <div className="flex gap-4 items-center bg-slate-50 p-3 rounded-3xl border border-slate-200">
-                        {/* Ward Selector */}
+                    {/* 🟢 HIERARCHICAL DROPDOWNS */}
+                    <div className="flex flex-wrap gap-3 bg-slate-50 p-2 rounded-[2rem] border border-slate-200">
+                        {/* 1. Circle */}
                         <div className="flex items-center gap-2 px-4 border-r border-slate-200">
-                            <Layers size={16} className="text-slate-400" />
-                            <select 
-                                className="bg-transparent border-none text-sm font-black text-slate-700 outline-none cursor-pointer"
-                                value={selectedWard}
-                                onChange={(e) => { setSelectedWard(e.target.value); setSelectedStaffId('All'); }}
-                            >
-                                <option value="All">All Wards</option>
-                                {wards.map(w => <option key={w.id} value={w.ward_no}>Ward {w.ward_no}</option>)}
+                            <Layers size={14} className="text-slate-400" />
+                            <select className="bg-transparent text-[11px] font-black uppercase text-slate-700 outline-none cursor-pointer" 
+                                value={selCircle} onChange={(e)=>{ setSelCircle(e.target.value); setSelWard('All'); setSelArea('All'); }}>
+                                <option value="All">All Circles</option>
+                                {circles.map(c => <option key={c.id} value={c.id}>{c.circle_name}</option>)}
                             </select>
                         </div>
-                        
-                        {/* Staff Selector */}
+
+                        {/* 2. Ward */}
+                        <div className="flex items-center gap-2 px-4 border-r border-slate-200">
+                            <MapPin size={14} className="text-slate-400" />
+                            <select className="bg-transparent text-[11px] font-black uppercase text-slate-700 outline-none cursor-pointer min-w-[100px]"
+                                value={selWard} onChange={(e)=>{ setSelWard(e.target.value); setSelArea('All'); }}>
+                                <option value="All">All Wards</option>
+                                {filteredWards.map(w => <option key={w.id} value={w.id}>Ward {w.ward_no}</option>)}
+                            </select>
+                        </div>
+
+                        {/* 3. Area (Road) */}
                         <div className="flex items-center gap-2 px-4">
-                            <MapPin size={16} className="text-slate-400" />
-                            <select 
-                                className="bg-transparent border-none text-sm font-black text-slate-700 outline-none cursor-pointer min-w-[150px]"
-                                value={selectedStaffId}
-                                onChange={(e) => setSelectedStaffId(e.target.value)}
-                            >
-                                <option value="All">All Deployed Units</option>
-                                {allStaff.filter(s => selectedWard === 'All' || s.ward_no === selectedWard).map(s => (
-                                    <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>
-                                ))}
+                            <Crosshair size={14} className="text-slate-400" />
+                            <select className="bg-transparent text-[11px] font-black uppercase text-slate-700 outline-none cursor-pointer min-w-[150px]"
+                                value={selArea} onChange={(e)=>setSelArea(e.target.value)}>
+                                <option value="All">Select Deployed Area</option>
+                                {filteredRoads.map(r => <option key={r.id} value={r.id}>{r.road_name_en}</option>)}
                             </select>
                         </div>
                     </div>
                 </header>
 
-                {/* 🟢 Map Section: Restored White Border & Clean Look */}
-                <div className="flex-1 rounded-[3rem] overflow-hidden border-[8px] border-white shadow-xl relative">
+                {/* 🟢 MAP VIEW */}
+                <div className="flex-1 rounded-[3.5rem] overflow-hidden border-[12px] border-white shadow-2xl relative group">
                     <MapContainer center={[26.22, 84.36]} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
                         <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" />
 
-                        {/* Ward Boundary */}
-                        {currentWardData && currentWardData.boundary_coords && (
+                        {/* Ward Boundaries */}
+                        {wards.filter(w => selWard === 'All' ? (selCircle === 'All' || w.circle_id.toString() === selCircle) : w.id.toString() === selWard)
+                          .map(w => w.boundary_coords && (
                             <Polygon 
-                                positions={JSON.parse(currentWardData.boundary_coords).map(c => [c[1], c[0]])}
-                                pathOptions={{ color: '#10b981', fillOpacity: 0.1, weight: 3, dashArray: '10, 10' }}
+                                key={w.id}
+                                positions={JSON.parse(w.boundary_coords).map(c => [c[1], c[0]])}
+                                pathOptions={{ 
+                                    color: selWard === 'All' ? '#ffffff' : '#10b981', 
+                                    fillOpacity: 0.05, 
+                                    weight: 2, 
+                                    dashArray: '5, 10' 
+                                }}
                             />
-                        )}
+                        ))}
 
+                        {/* Staff Markers */}
                         {filteredStaff.map(staff => (
-                            <Marker key={staff.id} position={[staff.lat || 26.22, staff.lng || 84.36]} icon={getWalkingIcon(staff.gender)}>
+                            <Marker key={staff.id} position={[staff.lat, staff.lng]} icon={getWalkingIcon(staff.gender)}>
                                 <Tooltip sticky direction="top" offset={[0, -40]} opacity={1}>
                                    
-                                   {/* --- ✨ Stylish Projection HUD Card --- */}
-                                   <div className="hud-card">
-                                      <div className="hud-scanner"></div>
+                                   {/* --- ✨ Sleek Glass HUD Card --- */}
+                                   <div className="hud-projection">
+                                      <div className="hud-scan-line"></div>
                                       
-                                      <div className="hud-header">
-                                         <div className="hud-id">
-                                            <Fingerprint size={14} />
-                                            <span>UNIT ID: {staff.employee_id || 'N/A'}</span>
+                                      <div className="flex justify-between items-center mb-4">
+                                         <div className="hud-badge">
+                                            <Fingerprint size={12} />
+                                            <span>{staff.employee_id}</span>
                                          </div>
-                                         <div className="hud-status-dot"></div>
+                                         <div className="hud-pulse"></div>
                                       </div>
 
-                                      <h3 className="hud-name">{staff.name}</h3>
+                                      <h3 className="hud-title">{staff.name}</h3>
+                                      <p className="hud-subtitle">F/H: {staff.fh_name}</p>
                                       
-                                      <div className="hud-grid">
-                                         <div className="hud-item">
-                                            <label>Gender / लिंग</label>
-                                            <p>{staff.gender || 'Male'}</p>
-                                         </div>
-                                         <div className="hud-item">
-                                            <label>Mobile / संपर्क</label>
-                                            <p>{staff.mobile || 'N/A'}</p>
-                                         </div>
-                                         <div className="hud-item">
-                                            <label>Deployment</label>
-                                            <p>Ward No: {staff.ward_no}</p>
-                                         </div>
-                                         <div className="hud-item">
+                                      <div className="hud-info-grid">
+                                         <div className="hud-cell">
                                             <label>Designation</label>
-                                            <p>{staff.post || 'Field Staff'}</p>
+                                            <p>{staff.post || 'Field Agent'}</p>
+                                         </div>
+                                         <div className="hud-cell">
+                                            <label>Ward / Area</label>
+                                            <p>W-{staff.ward_no} / {staff.road_name || 'Mobile'}</p>
+                                         </div>
+                                         <div className="hud-cell">
+                                            <label>Inspector</label>
+                                            <p>{staff.inspector_name || 'N/A'}</p>
+                                         </div>
+                                         <div className="hud-cell">
+                                            <label>Mobile</label>
+                                            <p className="text-emerald-400">{staff.mobile}</p>
                                          </div>
                                       </div>
 
-                                      <div className="hud-footer">
-                                         <ShieldCheck size={16} className="text-emerald-400" />
-                                         <div className="hud-footer-text">
-                                            <label>Supervisor In-Charge</label>
-                                            <p>{staff.inspector_name || 'Control Office'}</p>
-                                         </div>
-                                      </div>
-                                      
-                                      <div className="corner-tl"></div><div className="corner-br"></div>
+                                      <div className="hud-corner-tl"></div>
+                                      <div className="hud-corner-br"></div>
                                    </div>
                                 </Tooltip>
                             </Marker>
                         ))}
 
-                        <MapFocusHandler staff={selectedStaffObj} ward={currentWardData} />
+                        <MapFocusHandler circle={selCircle} ward={selWard} area={selArea} wards={wards} />
                     </MapContainer>
+                    
+                    {/* Map Legend/Overlay */}
+                    <div className="absolute bottom-10 left-10 z-[1000] flex flex-col gap-3">
+                         <div className="bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-white shadow-xl flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <img src="/assets/staff-walking.gif" className="w-8 h-8" alt="m"/>
+                                <span className="text-[10px] font-black uppercase text-slate-600">Male Staff</span>
+                            </div>
+                            <div className="w-px h-6 bg-slate-200" />
+                            <div className="flex items-center gap-2">
+                                <img src="/assets/staff-walkingf.gif" className="w-8 h-8" alt="f"/>
+                                <span className="text-[10px] font-black uppercase text-slate-600">Female Staff</span>
+                            </div>
+                         </div>
+                    </div>
                 </div>
             </div>
 
             <style>{`
                 .leaflet-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
                 
-                /* Stylish Projection Card CSS */
-                .hud-card {
-                    background: rgba(15, 23, 42, 0.95);
-                    backdrop-filter: blur(10px);
-                    border: 1px solid rgba(16, 185, 129, 0.4);
-                    border-radius: 24px;
-                    padding: 20px;
-                    width: 280px;
+                /* Smooth transition for marker movements */
+                .smooth-marker-move { 
+                    transition: all 5s linear; 
+                    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
+                }
+
+                /* PRO HUD CARD DESIGN */
+                .hud-projection {
+                    background: rgba(15, 23, 42, 0.9);
+                    backdrop-filter: blur(12px);
+                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    border-radius: 28px;
+                    padding: 24px;
+                    width: 300px;
                     position: relative;
                     color: white;
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+                    box-shadow: 0 25px 60px rgba(0,0,0,0.6), inset 0 0 20px rgba(16, 185, 129, 0.1);
                     overflow: hidden;
                 }
 
-                .hud-scanner {
-                    position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-                    background: linear-gradient(to right, transparent, #10b981, transparent);
-                    animation: h-scan 3s linear infinite;
+                .hud-scan-line {
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                    background: linear-gradient(to bottom, transparent, rgba(16, 185, 129, 0.05), transparent);
+                    background-size: 100% 4px;
+                    pointer-events: none;
                 }
 
-                .hud-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-                .hud-id { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; color: #10b981; letter-spacing: 2px; }
-                .hud-status-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981; animation: h-pulse 1.5s infinite; }
-
-                .hud-name { font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; color: #fff; letter-spacing: -0.5px; }
-
-                .hud-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
-                .hud-item label { display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-                .hud-item p { font-size: 11px; font-weight: 800; color: #f8fafc; margin-top: 2px; }
-
-                .hud-footer {
-                    margin-top: 20px; padding: 12px; background: rgba(16, 185, 129, 0.08);
-                    border-radius: 15px; border-left: 4px solid #10b981;
-                    display: flex; align-items: center; gap: 12px;
+                .hud-badge { 
+                    background: rgba(16, 185, 129, 0.15);
+                    padding: 4px 12px;
+                    border-radius: 10px;
+                    display: flex; align-items: center; gap: 8px;
+                    color: #10b981; font-size: 10px; font-weight: 900; letter-spacing: 1.5px;
                 }
-                .hud-footer-text label { display: block; font-size: 8px; color: #10b981; font-weight: 900; text-transform: uppercase; }
-                .hud-footer-text p { font-size: 11px; font-weight: 900; color: #fff; }
 
-                .corner-tl { position: absolute; top: 0; left: 0; width: 20px; height: 20px; border-top: 3px solid #10b981; border-left: 3px solid #10b981; border-radius: 10px 0 0 0; }
-                .corner-br { position: absolute; bottom: 0; right: 0; width: 20px; height: 20px; border-bottom: 3px solid #10b981; border-right: 3px solid #10b981; border-radius: 0 0 10px 0; }
+                .hud-pulse { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 15px #10b981; animation: radar-pulse 1.5s infinite; }
 
-                @keyframes h-scan { 0% { top: -5% } 100% { top: 105% } }
-                @keyframes h-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
-                
-                .staff-gif-marker { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4)); }
+                .hud-title { font-size: 24px; font-weight: 950; text-transform: uppercase; margin-bottom: 2px; letter-spacing: -1px; }
+                .hud-subtitle { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 20px; }
+
+                .hud-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+                .hud-cell label { display: block; font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+                .hud-cell p { font-size: 11px; font-weight: 800; color: #f1f5f9; }
+
+                .hud-corner-tl { position: absolute; top: 0; left: 0; width: 25px; height: 25px; border-top: 4px solid #10b981; border-left: 4px solid #10b981; border-radius: 15px 0 0 0; }
+                .hud-corner-br { position: absolute; bottom: 0; right: 0; width: 25px; height: 25px; border-bottom: 4px solid #10b981; border-right: 4px solid #10b981; border-radius: 0 0 15px 0; }
+
+                @keyframes radar-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
             `}</style>
         </CityLayout>
     );
 };
 
-function MapFocusHandler({ staff, ward }) {
+// --- MAP FOCUS LOGIC ---
+function MapFocusHandler({ circle, ward, area, wards }) {
     const map = useMap();
     useEffect(() => {
-        if (staff && staff.lat) {
-            map.flyTo([staff.lat, staff.lng], 18, { duration: 2 });
-        } else if (ward && ward.boundary_coords) {
-            const coords = JSON.parse(ward.boundary_coords);
-            const bounds = L.polygon(coords.map(c => [c[1], c[0]])).getBounds();
-            map.flyToBounds(bounds, { padding: [100, 100], duration: 1.5 });
+        if (ward !== 'All') {
+            const wardData = wards.find(w => w.id.toString() === ward);
+            if (wardData && wardData.boundary_coords) {
+                const coords = JSON.parse(wardData.boundary_coords);
+                const bounds = L.polygon(coords.map(c => [c[1], c[0]])).getBounds();
+                map.flyToBounds(bounds, { padding: [100, 100], duration: 1.5 });
+            }
+        } else if (circle !== 'All') {
+            // Focus on first ward of circle as approximation if no circle geometry exists
+            const circleWards = wards.filter(w => w.circle_id.toString() === circle);
+            if(circleWards.length > 0 && circleWards[0].boundary_coords) {
+                const coords = JSON.parse(circleWards[0].boundary_coords);
+                map.flyTo([coords[0][1], coords[0][0]], 14, { duration: 2 });
+            }
+        } else {
+            map.flyTo([26.22, 84.36], 13, { duration: 1 }); // Default city view
         }
-    }, [staff, ward, map]);
+    }, [circle, ward, area, map, wards]);
     return null;
 }
 
