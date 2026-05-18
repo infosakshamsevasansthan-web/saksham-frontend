@@ -228,7 +228,8 @@ const CityDashboard = () => {
                 </div>
             </div>
         </div>
-    </CityLayout>
+      </div>
+      </CityLayout>
   );
 };
 
