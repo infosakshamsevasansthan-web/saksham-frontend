@@ -11,7 +11,7 @@ const getWalkingIcon = (gender) => {
     const g = gender ? gender.toLowerCase() : 'male';
     const iconUrl = g === 'female' 
         ? '/assets/staff-walkingf.gif' 
-        : '/assets/staff-walking.gif';
+        : '/assets/staff-walk.gif';
 
     return new L.Icon({
         iconUrl: iconUrl,
@@ -249,7 +249,7 @@ const StaffLiveTracking = () => {
                     <div className="absolute bottom-10 left-10 z-[1000] flex flex-col gap-3">
                          <div className="bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-white shadow-xl flex items-center gap-4">
                             <div className="flex items-center gap-2">
-                                <img src="/assets/staff-walking.gif" className="w-8 h-8" alt="m"/>
+                                <img src="/assets/staff-walk.gif" className="w-8 h-8" alt="m"/>
                                 <span className="text-[10px] font-black uppercase text-slate-600">Male Staff</span>
                             </div>
                             <div className="w-px h-6 bg-slate-200" />
