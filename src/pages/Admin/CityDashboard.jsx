@@ -2,27 +2,33 @@ import React, { useState, useEffect } from 'react';
 import CityLayout from '../../components/layout/cityAdmin/CityLayout';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Polygon, Tooltip } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { 
   MapPin, Users, Truck, AlertTriangle, Sparkles, 
-  RefreshCcw, BrainCircuit, Activity, Zap, ShieldCheck 
+  RefreshCcw, BrainCircuit, Activity, Zap, ShieldCheck, Globe 
 } from 'lucide-react';
 
 const CityDashboard = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    activeWards: 0,
-    activeStaff: 0,
-    totalVehicles: 0,
-    openGrievances: 0
+  const [data, setData] = useState({
+    activeWards: 0, activeStaff: 0, totalVehicles: 0, openGrievances: 0,
+    todayTonnage: 0, todayFuel: 0, wardsMap: []
   });
   const [loading, setLoading] = useState(true);
   const tenantId = localStorage.getItem('tenantId') || 'SAK-SIW-6925';
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`https://saksham-backend-9719.onrender.com/api/admin/dashboard-stats/${tenantId}`);
+      const res = await fetch(`https://saksham-backend-9719.onrender.com/api/admin/dashboard-realtime/${tenantId}`);
       const result = await res.json();
-      if (result.success) setStats(result.data);
+      if (result.success) {
+        setData({
+          ...result.stats, // Ye backend ke saare counts bharega
+          wardsMap: result.wards // Ye map ke liye boundaries bharega
+        });
+      }
     } catch (err) {
       console.error("Stats fetch error:", err);
     } finally {
@@ -81,10 +87,10 @@ const CityDashboard = () => {
 
         {/* --- STATS GRID --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-           <CityStatPod label="Active Wards" value={stats.activeWards} icon={MapPin} color="emerald" unit="Zones" />
-           <CityStatPod label="Safai Mitras" value={stats.activeStaff} icon={Users} color="blue" unit="On-Field" />
-           <CityStatPod label="SWM Fleet" value={stats.totalVehicles} icon={Truck} color="amber" unit="Vehicles" />
-           <CityStatPod label="Complaints" value={stats.openGrievances} icon={AlertTriangle} color="rose" unit="Pending" />
+           <CityStatPod label="Active Wards" value={data.total_wards} icon={MapPin} color="emerald" unit="Zones" />
+           <CityStatPod label="Safai Mitras" value={data.total_staff} icon={Users} color="blue" unit="On-Field" />
+           <CityStatPod label="SWM Fleet" value={data.total_vehicles} icon={Truck} color="amber" unit="Vehicles" />
+           <CityStatPod label="Complaints" value={data.pending_complaints} icon={AlertTriangle} color="rose" unit="Pending" />
         </div>
 
         {/* --- OPERATIONAL PULSE & RESOURCE HEALTH --- */}
@@ -114,14 +120,14 @@ const CityDashboard = () => {
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
                     <div className="space-y-2">
                         <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Garbage Tonnage</p>
-                        <h4 className="text-4xl font-black">12.8 <span className="text-sm font-bold opacity-60 uppercase">Tons</span></h4>
+                        <h4 className="text-4xl font-black">{data.today_tonnage} <span className="text-sm font-bold opacity-60 uppercase">Tons</span></h4>
                         <div className="w-full bg-white/20 h-1.5 rounded-full mt-2 overflow-hidden">
                             <motion.div initial={{ width: 0 }} animate={{ width: "65%" }} className="h-full bg-emerald-400" transition={{ duration: 2 }} />
                         </div>
                     </div>
                     <div className="space-y-2 border-l border-white/10 pl-6 text-left">
                         <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Fuel Logs</p>
-                        <h4 className="text-4xl font-black">450 <span className="text-sm font-bold opacity-60 uppercase">Ltrs</span></h4>
+                        <h4 className="text-4xl font-black">{data.today_fuel} <span className="text-sm font-bold opacity-60 uppercase">Ltrs</span></h4>
                         <p className="text-[10px] text-indigo-200 italic font-medium">Optimal consumption</p>
                     </div>
                     <div className="bg-white/10 backdrop-blur-md p-6 rounded-[35px] border border-white/10">
@@ -169,19 +175,59 @@ const CityDashboard = () => {
         </div>
 
         {/* Operational Map Section */}
-        <div className="relative group overflow-hidden bg-white p-2 rounded-[55px] shadow-sm border border-slate-100">
-           <div className="bg-slate-50 p-20 rounded-[48px] border border-dashed border-slate-200 flex flex-col items-center justify-center min-h-[400px] transition-all group-hover:bg-emerald-50/20">
-              <div className="relative mb-6">
-                <div className="absolute inset-0 bg-emerald-400 blur-3xl opacity-10 group-hover:opacity-30 transition-opacity"></div>
-                <img src="/logo.png" className="w-24 h-24 object-contain relative z-10" alt="Saksham" />
-              </div>
-              <p className="text-slate-400 font-black text-3xl uppercase tracking-[0.4em] text-center leading-relaxed">
-                Interactive Ward Map <br /> 
-                <span className="text-[10px] tracking-[0.5em] text-emerald-500 opacity-40 font-bold">Coming Next: GIS Engine V2</span>
-              </p>
-           </div>
+        {/* --- 🟢 REAL INTERACTIVE GIS MAP SECTION --- */}
+        <div className="bg-white rounded-[55px] border border-slate-100 shadow-xl overflow-hidden">
+            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-4 text-left">
+                    <div className="p-3 bg-slate-900 rounded-2xl text-emerald-400 shadow-lg">
+                        <Globe size={24}/>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800 uppercase italic">Interactive GIS Ward Map</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live Polygon Monitoring System</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase border border-emerald-100">
+                        Live Coverage
+                    </div>
+                </div>
+            </div>
+            
+            <div className="h-[500px] w-full relative z-0">
+                <MapContainer center={[26.22, 84.36]} zoom={13} style={{height: '100%', width: '100%'}} zoomControl={false}>
+                    <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
+                    
+                    {data.wardsMap && data.wardsMap.map(ward => ward.boundary_coords && (
+                        <Polygon 
+                            key={ward.id}
+                            positions={JSON.parse(ward.boundary_coords).map(c => [c[1], c[0]])}
+                            pathOptions={{ 
+                                color: '#6366f1', 
+                                fillColor: '#6366f1', 
+                                fillOpacity: 0.1, 
+                                weight: 2 
+                            }}
+                        >
+                            <Tooltip sticky>
+                                <div className="p-2 font-black uppercase text-[10px] text-left">
+                                    <p className="text-indigo-600">Ward No: {ward.ward_no}</p>
+                                    <p className="text-slate-600">{ward.ward_name}</p>
+                                </div>
+                            </Tooltip>
+                        </Polygon>
+                    ))}
+                </MapContainer>
+
+                {/* Floating Legend */}
+                <div className="absolute bottom-6 right-6 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-white shadow-2xl">
+                     <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                        <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Mapped Polygons</span>
+                     </div>
+                </div>
+            </div>
         </div>
-      </div>
     </CityLayout>
   );
 };
