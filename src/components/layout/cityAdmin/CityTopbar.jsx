@@ -112,13 +112,12 @@ const CityTopbar = ({ toggleSidebar }) => {
 
         <div className="relative">
           <div onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-3 cursor-pointer p-1.5 bg-slate-50 border border-slate-100 rounded-2xl hover:shadow-md transition-all">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-slate-100 overflow-hidden shadow-sm">
-              {logoPreview ? (
-                <img src={logoPreview} alt="Muni Logo" className="w-full h-full object-contain" />
-              ) : (
-                <span className="font-black text-emerald-600 uppercase">{profileData?.full_name?.charAt(0) || 'C'}</span>
-              )}
-            </div>
+            <img 
+  src={logoPreview || localStorage.getItem('muniLogo') || "/logo.png"} 
+  alt="Logo" 
+  className="w-full h-full object-contain" 
+  onError={(e) => { e.target.src = "/logo.png" }} 
+/>
             <div className="hidden md:block">
               <p className="text-xs font-black text-slate-800 leading-none">{profileData?.full_name || 'City Admin'}</p>
               <p className="text-[10px] font-bold text-emerald-600 mt-1 italic">{tenantId}</p>
