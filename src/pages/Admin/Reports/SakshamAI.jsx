@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import { 
     Sparkles, Terminal, FileSpreadsheet, File as FilePdf, Loader2, RefreshCcw, 
-    Search, Database, Cpu, CheckCircle2, ListChecks, Filter, Download, Zap,
-    ArrowRight, Table, LayoutPanelTop, MousePointer2, AlertCircle,
-    LayoutDashboard, Users, Truck, FileJson, History, UserCheck, Coins,
-    ChevronRight, Info, Settings, Trash2
+    Search, Database, Cpu, CheckCircle2, ListChecks, Download, Zap,
+    LayoutPanelTop, MousePointer2, ChevronLeft, ChevronRight, Send, Filter,
+    Truck, Users, AlertCircle, Info, Table as TableIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -18,219 +17,170 @@ import 'jspdf-autotable';
 const SakshamAI = () => {
     const [prompt, setPrompt] = useState("");
     const [loading, setLoading] = useState(false);
-    const [reportData, setReportData] = useState(null); // Backend se aane wala poora data
-    const [visibleColumns, setVisibleColumns] = useState([]); // User jo columns select karega
+    const [reportData, setReportData] = useState(null); 
+    const [visibleColumns, setVisibleColumns] = useState([]); 
+    const [currentPage, setCurrentPage] = useState(1);
+    const rowsPerPage = 10;
+
     const tenantId = localStorage.getItem('tenantId') || 'SAK-SIW-6925';
 
-    // 🟢 1. Neural Search Logic (Backend Sync)
+    // 🟢 AI Search Logic
     const handleAISearch = async (e) => {
         if(e) e.preventDefault();
-        if (!prompt.trim()) return toast.error("Bhai, AI se kuch toh puchiye!");
+        if (!prompt.trim()) return toast.error("AI se baatchit shuru karein!");
         
         setLoading(true);
         setReportData(null);
+        setCurrentPage(1);
         try {
             const res = await axios.post('https://saksham-backend-9719.onrender.com/api/admin/reports/ai-engine', { prompt, tenantId });
-            
-            if (res.data.data && res.data.data.length > 0) {
+            if (res.data.data?.length > 0) {
                 setReportData(res.data);
-                // Default: Saare columns dikhao
                 setVisibleColumns(Object.keys(res.data.data[0]));
-                toast.success("Intelligence Report Taiyar Hai! ✨");
+                toast.success("Intelligence Report Ready! ✨");
             } else {
-                toast.error("Database mein koi record nahi mila.");
+                toast.error("Database mein record nahi mila.");
             }
         } catch (err) {
-            toast.error(err.response?.data?.message || "Neural Engine failure");
+            toast.error("Neural Engine response error");
         } finally { setLoading(false); }
     };
 
-    // 🟢 2. Header / Column Manager Logic
-    const toggleColumn = (colName) => {
+    // 🟢 Pagination Logic
+    const paginatedData = useMemo(() => {
+        if (!reportData) return [];
+        const start = (currentPage - 1) * rowsPerPage;
+        return reportData.data.slice(start, start + rowsPerPage);
+    }, [reportData, currentPage]);
+
+    const totalPages = reportData ? Math.ceil(reportData.data.length / rowsPerPage) : 0;
+
+    // 🟢 Toggle Header Logic
+    const toggleCol = (col) => {
         setVisibleColumns(prev => 
-            prev.includes(colName) 
-            ? prev.filter(c => c !== colName) 
-            : [...prev, colName]
+            prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
         );
     };
 
-    // 🟢 3. Excel Export Logic (Sirf Visible Columns)
+    // 🟢 Professional Excel Export
     const exportExcel = async () => {
         const workbook = new ExcelJS.Workbook();
         const sheet = workbook.addWorksheet('AI_Report');
-        
-        sheet.columns = visibleColumns.map(col => ({
-            header: col.replace("_", " ").toUpperCase(),
-            key: col,
-            width: 25
-        }));
-
+        sheet.columns = visibleColumns.map(c => ({ header: c.replace("_", " ").toUpperCase(), key: c, width: 25 }));
         sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFF' } };
-        sheet.getRow(1).fill = { type: 'pattern', fillType: 'solid', fgColor: { argb: '4F46E5' } };
-
-        reportData.data.forEach(item => {
-            const row = {};
-            visibleColumns.forEach(c => row[c] = item[c]);
-            sheet.addRow(row);
-        });
-
+        sheet.getRow(1).fill = { type: 'pattern', fillType: 'solid', fgColor: { argb: '059669' } }; // Emerald 600
+        sheet.addRows(reportData.data);
         const buffer = await workbook.xlsx.writeBuffer();
-        saveAs(new Blob([buffer]), `Saksham_AI_${reportData.title}.xlsx`);
+        saveAs(new Blob([buffer]), `Saksham_Report_${Date.now()}.xlsx`);
+        toast.success("Excel Exported!");
     };
 
-    // 🟢 4. PDF Export Logic (A4 Landscape)
-    const exportPDF = () => {
-        const doc = new jsPDF('l', 'mm', 'a4');
-        doc.setFontSize(20);
-        doc.setTextColor(79, 70, 229);
-        doc.text("SAKSHAM AI COMMAND CENTER", 14, 15);
-        
-        const headers = [visibleColumns.map(c => c.replace("_", " ").toUpperCase())];
-        const body = reportData.data.map(row => visibleColumns.map(col => row[col] || '---'));
-
-        doc.autoTable({
-            head: headers,
-            body: body,
-            startY: 25,
-            theme: 'striped',
-            headStyles: { fillColor: [79, 70, 229] },
-            styles: { fontSize: 8 }
-        });
-        doc.save(`Saksham_Report_${Date.now()}.pdf`);
-    };
-
-    // 🟢 5. Smart Status Badge Logic
+    // 🟢 Badge Color Logic
     const getBadgeStyle = (val) => {
         const text = String(val).toLowerCase();
-        if (['active', 'resolved', 'running', 'a', 'present', 'on-duty'].includes(text)) 
-            return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-        if (['pending', 'open', 'maintenance', 'mixed', 'b', 'in-progress'].includes(text)) 
-            return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-        if (['inactive', 'suspended', 'breakdown', 'dry', 'absent', 'rejected'].includes(text)) 
-            return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-        return 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20';
+        if (['active', 'resolved', 'running', 'a', 'present'].includes(text)) return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+        if (['pending', 'open', 'maintenance', 'mixed', 'b'].includes(text)) return 'bg-amber-50 text-amber-600 border-amber-100';
+        if (['inactive', 'suspended', 'breakdown', 'dry', 'absent'].includes(text)) return 'bg-rose-50 text-rose-600 border-rose-100';
+        return 'bg-slate-50 text-slate-500 border-slate-100';
     };
 
     return (
         <CityLayout>
             <Toaster position="top-right" />
-            <div className="p-6 space-y-10 bg-[#0a0a0f] min-h-screen font-sans text-left selection:bg-indigo-500 selection:text-white">
+            <div className="p-4 space-y-6 bg-[#F8FAFC] min-h-screen text-left font-sans">
                 
-                {/* --- 📟 CYBER SEARCH INTERFACE --- */}
-                <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-black rounded-[50px] p-12 text-white shadow-[0_20px_100px_rgba(0,0,0,0.8)] relative overflow-hidden border border-white/5 group">
-                    <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[150px] -mr-60 -mt-60 animate-pulse"></div>
-                    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-emerald-600/5 rounded-full blur-[120px] -ml-40 -mb-40"></div>
-
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-8 mb-16">
-                            <motion.div 
-                                animate={{ rotate: 360 }}
-                                transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
-                                className="w-28 h-24 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-[35px] flex items-center justify-center shadow-[0_0_60px_rgba(99,102,241,0.5)] border-2 border-white/10"
-                            >
-                                <Cpu size={48} className="text-white" />
-                            </motion.div>
+                {/* --- 🟢 COMPACT EMERALD HEADER --- */}
+                <div className="bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 rounded-[35px] p-8 text-white shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12"><Cpu size={150} /></div>
+                    
+                    <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+                        <div className="flex items-center gap-5">
+                            <div className="w-16 h-16 bg-white/20 rounded-[22px] flex items-center justify-center backdrop-blur-md border border-white/30 shadow-inner">
+                                <Sparkles size={32} className="text-white animate-pulse" />
+                            </div>
                             <div>
-                                <h1 className="text-6xl font-black tracking-tighter uppercase italic leading-none bg-gradient-to-r from-white via-indigo-100 to-slate-500 bg-clip-text text-transparent">Saksham AI Mitra</h1>
-                                <div className="flex items-center gap-4 mt-5">
-                                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Neural Link Active</span>
-                                    </div>
-                                    <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em]">Universal Data Stream v4.0</span>
-                                </div>
+                                <h1 className="text-3xl font-black tracking-tight uppercase italic leading-none">Saksham AI Mitra</h1>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.4em] opacity-80 mt-2">Neural Reporting Interface v4.5</p>
                             </div>
                         </div>
 
-                        {/* Search Input HUD */}
-                        <form onSubmit={handleAISearch} className="relative max-w-6xl group">
-                            <div className="absolute left-10 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-emerald-400 transition-colors">
-                                <Terminal size={36} />
-                            </div>
+                        {/* ⌨️ Compact Input Box */}
+                        <form onSubmit={handleAISearch} className="flex-1 max-w-2xl relative group w-full">
                             <input 
-                                className="w-full bg-white/5 border-2 border-white/10 rounded-full py-12 pl-32 pr-72 text-3xl font-bold placeholder:text-slate-800 outline-none focus:border-indigo-500 focus:bg-white/10 focus:shadow-[0_0_50px_rgba(79,70,229,0.2)] transition-all text-indigo-50"
-                                placeholder="Gari, Staff, Kachra, ya Plant ke baare mein puchiye..."
+                                className="w-full bg-white rounded-full py-5 pl-14 pr-16 text-sm font-bold text-slate-800 outline-none shadow-2xl border-2 border-transparent focus:border-emerald-300 transition-all placeholder:text-slate-400"
+                                placeholder="Gari ki report, Staff hazri, Kachra collection..."
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                             />
+                            <Terminal className="absolute left-5 top-5 text-emerald-500" size={20} />
                             <button 
                                 type="submit" disabled={loading}
-                                className="absolute right-6 top-1/2 -translate-y-1/2 bg-indigo-500 hover:bg-emerald-500 text-white px-16 py-8 rounded-full font-black uppercase text-sm tracking-widest transition-all active:scale-95 flex items-center gap-4 shadow-2xl disabled:opacity-50"
+                                className="absolute right-2 top-2 w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center hover:bg-emerald-700 transition-all active:scale-90 shadow-lg"
                             >
-                                {loading ? <Loader2 className="animate-spin" size={24}/> : <Sparkles size={24}/>}
-                                Generate Insight
+                                {loading ? <Loader2 className="animate-spin" size={20}/> : <Send size={20}/>}
                             </button>
                         </form>
                     </div>
                 </div>
 
-                {/* --- 📊 REPORT DISPLAY SECTION --- */}
+                {/* --- 📊 DATA DISPLAY AREA --- */}
                 <AnimatePresence mode="wait">
                     {reportData ? (
-                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
+                        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                             
-                            {/* 🛠️ DYNAMIC COLUMN CONTROLLER */}
-                            <div className="bg-slate-900/80 backdrop-blur-3xl p-10 rounded-[4rem] border border-white/10 shadow-3xl">
-                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
-                                    <div className="flex items-center gap-6">
-                                        <div className="p-5 bg-indigo-600 rounded-[2rem] text-white shadow-2xl rotate-3"><LayoutPanelTop size={32}/></div>
-                                        <div>
-                                            <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter">{reportData.title}</h3>
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <Database size={14} className="text-indigo-400"/>
-                                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Neural Mapping: {reportData.data.length} Records found</p>
-                                            </div>
-                                        </div>
+                            {/* 🛠️ Column Management & Tools */}
+                            <div className="bg-white p-6 rounded-[30px] border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                <div className="space-y-3 flex-1">
+                                    <div className="flex items-center gap-2 text-emerald-600">
+                                        <ListChecks size={18}/>
+                                        <h3 className="text-[10px] font-black uppercase tracking-widest">Select Table Components / हेडर्स चुनें</h3>
                                     </div>
-                                    <div className="flex flex-wrap gap-4">
-                                        <ExportBtn onClick={exportExcel} icon={FileSpreadsheet} label="Excel" color="emerald" />
-                                        <ExportBtn onClick={exportPDF} icon={FilePdf} label="PDF" color="rose" />
-                                        <button onClick={() => setReportData(null)} className="p-5 bg-white/5 text-slate-400 rounded-3xl hover:bg-rose-500 hover:text-white transition-all border border-white/10 active:scale-90"><RefreshCcw size={24}/></button>
-                                    </div>
-                                </div>
-
-                                <div className="mt-12 pt-10 border-t border-white/5">
-                                    <div className="flex items-center gap-3 mb-8">
-                                        <MousePointer2 size={18} className="text-indigo-400 animate-bounce" />
-                                        <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">Configure Intelligence Headers / कॉलम फ़िल्टर</h4>
-                                    </div>
-                                    <div className="flex flex-wrap gap-4">
+                                    <div className="flex flex-wrap gap-2">
                                         {Object.keys(reportData.data[0]).map(col => (
                                             <button 
-                                                key={col} onClick={() => toggleColumn(col)}
-                                                className={`px-8 py-4 rounded-2xl text-[11px] font-black uppercase transition-all border-2 ${visibleColumns.includes(col) ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_10px_30px_rgba(79,70,229,0.4)]' : 'bg-white/5 border-white/10 text-slate-600 hover:bg-white/10'}`}
+                                                key={col} onClick={() => toggleCol(col)}
+                                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase border-2 transition-all ${visibleColumns.includes(col) ? 'bg-emerald-600 border-emerald-500 text-white shadow-md' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-emerald-200'}`}
                                             >
                                                 {col.replace("_", " ")}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <button onClick={exportExcel} className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center gap-2 font-black text-[10px] uppercase">
+                                        <FileSpreadsheet size={18}/> Excel
+                                    </button>
+                                    <button onClick={() => setReportData(null)} className="p-4 bg-slate-100 text-slate-400 rounded-2xl hover:bg-rose-500 hover:text-white transition-all active:scale-90 shadow-sm">
+                                        <RefreshCcw size={20}/>
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* 📑 DATA GRID TABLE */}
-                            <div className="bg-white rounded-[5rem] shadow-[0_40px_100px_rgba(0,0,0,0.2)] overflow-hidden border border-slate-200">
-                                <div className="overflow-x-auto p-10">
-                                    <table className="w-full text-left border-separate border-spacing-y-4">
-                                        <thead>
-                                            <tr className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                                                {visibleColumns.map(col => (
-                                                    <th key={col} className="px-10 py-4">{col.replace("_", " ")}</th>
-                                                ))}
+                            {/* 📑 SCROLLABLE DATA TABLE */}
+                            <div className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden">
+                                <div className="p-6 border-b border-slate-50 flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                                    <h2 className="text-sm font-black text-slate-700 uppercase tracking-tighter italic">{reportData.title}</h2>
+                                </div>
+
+                                <div className="max-h-[550px] overflow-auto custom-scrollbar">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="sticky top-0 bg-slate-900 text-white z-20">
+                                            <tr className="text-[10px] font-black uppercase tracking-[0.2em]">
+                                                {visibleColumns.map(col => <th key={col} className="p-6">{col.replace("_", " ")}</th>)}
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            {reportData.data.map((row, idx) => (
-                                                <tr key={idx} className="group">
+                                        <tbody className="divide-y divide-slate-50">
+                                            {paginatedData.map((row, idx) => (
+                                                <tr key={idx} className="hover:bg-emerald-50/40 transition-colors group">
                                                     {visibleColumns.map(col => (
-                                                        <td key={col} className="px-10 py-8 bg-slate-50 group-hover:bg-indigo-50 first:rounded-l-[2.5rem] last:rounded-r-[2.5rem] transition-all duration-300 border-y-2 border-transparent group-hover:border-indigo-100/50">
+                                                        <td key={col} className="p-6">
                                                             {typeof row[col] === 'string' && row[col].length < 15 ? (
-                                                                <span className={`px-5 py-2 rounded-full text-[10px] font-black uppercase border-2 ${getBadgeStyle(row[col])}`}>
+                                                                <span className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase border ${getBadgeStyle(row[col])}`}>
                                                                     {row[col]}
                                                                 </span>
                                                             ) : (
-                                                                <span className="font-bold text-slate-700 text-base leading-tight">
-                                                                    {row[col] || '---'}
-                                                                </span>
+                                                                <span className="font-bold text-slate-700 text-xs uppercase">{row[col] || '---'}</span>
                                                             )}
                                                         </td>
                                                     ))}
@@ -239,53 +189,62 @@ const SakshamAI = () => {
                                         </tbody>
                                     </table>
                                 </div>
-                                <div className="p-10 bg-slate-50 border-t border-slate-100 flex justify-center items-center gap-4">
-                                     <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.6em]">End of Digital Intelligence Stream</p>
+
+                                {/* 📟 PAGER CONTROLS */}
+                                <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-between items-center px-10">
+                                    <div className="flex items-center gap-2">
+                                        <TableIcon size={14} className="text-slate-400" />
+                                        <p className="text-[10px] font-black text-slate-400 uppercase">Total Nodes: {reportData.data.length}</p>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <button 
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                                            disabled={currentPage === 1}
+                                            className="p-3 bg-white rounded-xl border border-slate-200 disabled:opacity-20 hover:bg-emerald-50 transition-all"
+                                        >
+                                            <ChevronLeft size={18}/>
+                                        </button>
+                                        <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Page {currentPage} / {totalPages}</span>
+                                        <button 
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                                            disabled={currentPage === totalPages}
+                                            className="p-3 bg-white rounded-xl border border-slate-200 disabled:opacity-20 hover:bg-emerald-50 transition-all"
+                                        >
+                                            <ChevronRight size={18}/>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
                     ) : (
-                        /* --- 💡 SYSTEM USAGE TIPS --- */
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            <TipCard icon={Truck} title="Fleet Telematics" hint="Gari ki report dikhao" color="blue" />
-                            <TipCard icon={Users} title="Human Capital" hint="Active Staff list" color="emerald" />
-                            <TipCard icon={Coins} title="Plant Revenue" hint="Total processing sale" color="amber" />
-                            <TipCard icon={AlertCircle} title="Grievance Audit" hint="Aaj ki pending shikayat" color="rose" />
+                        /* --- 💡 USAGE TIPS --- */
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-6">
+                            <UsageTip icon={Truck} label="Fleet Analysis" hint="Gari ki report" color="emerald" />
+                            <UsageTip icon={Users} label="Human Capital" hint="Staff attendance" color="blue" />
+                            <UsageTip icon={Zap} label="Plant Output" hint="Compost ki sale" color="amber" />
+                            <UsageTip icon={AlertCircle} label="Grievances" hint="Pending shikayat" color="rose" />
                         </div>
                     )}
                 </AnimatePresence>
             </div>
-
+            
             <style>{`
-                ::-webkit-scrollbar { width: 8px; height: 8px; }
-                ::-webkit-scrollbar-thumb { background: #4F46E5; border-radius: 10px; }
-                ::-webkit-scrollbar-track { background: #0a0a0f; }
-                .shadow-3xl { box-shadow: 0 50px 100px -20px rgba(0,0,0,0.7); }
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
             `}</style>
         </CityLayout>
     );
 };
 
-// --- ✨ Sub-Components for Design Fidelity ---
-
-const ExportBtn = ({ onClick, icon: Icon, label, color }) => (
-    <button onClick={onClick} className={`flex items-center gap-4 bg-${color}-500/10 text-${color}-400 px-10 py-5 rounded-[2rem] font-black text-xs uppercase hover:bg-${color}-500 hover:text-white transition-all shadow-xl border border-${color}-500/20 active:scale-95`}>
-        <Icon size={20}/> {label} Export
-    </button>
-);
-
-const TipCard = ({ icon: Icon, title, hint, color }) => (
-    <motion.div 
-        whileHover={{ y: -10 }}
-        className="bg-slate-900/40 backdrop-blur-md p-10 rounded-[3.5rem] border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer group shadow-2xl"
-    >
-        <div className={`w-16 h-16 bg-white/5 text-${color}-400 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-inner border border-white/5`}>
-            <Icon size={32} />
+const UsageTip = ({ icon: Icon, label, hint, color }) => (
+    <div className="bg-white p-8 rounded-[35px] border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group flex flex-col items-center text-center">
+        <div className={`w-14 h-14 rounded-2xl mb-5 flex items-center justify-center bg-${color}-50 text-${color}-600 group-hover:scale-110 transition-transform shadow-inner border border-${color}-100`}>
+            <Icon size={24} />
         </div>
-        <h4 className="text-lg font-black text-white uppercase tracking-wider mb-3">{title}</h4>
-        <p className="text-slate-500 text-xs font-bold italic leading-relaxed">Ask AI: <span className="text-indigo-400">"{hint}"</span></p>
-    </motion.div>
+        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-2">{label}</h4>
+        <p className="text-slate-400 text-[10px] font-bold italic leading-relaxed">Ask AI: "{hint}"</p>
+    </div>
 );
 
 export default SakshamAI;
