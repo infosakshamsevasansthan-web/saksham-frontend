@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -87,6 +88,36 @@ const Placeholder = ({ title }) => (
 );
 
 function App() {
+  useEffect(() => {
+    const checkSession = () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        // Token decode karke expiry check karna
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiryTime = payload.exp * 1000; // exp seconds mein hota hai
+        const currentTime = Date.now();
+
+        if (currentTime >= expiryTime) {
+          // 🔥 Action: Session khatam!
+          localStorage.clear();
+          window.location.href = "/login"; // Seedha login par bhej do
+          alert("Security Alert: Aapka session khatam ho gaya hai. Kripya fir se login karein.");
+        }
+      } catch (e) {
+        console.error("Token decoding error");
+        localStorage.clear();
+      }
+    };
+
+    // Har 10 second mein pichhe se check karega ki time up toh nahi hua
+    const sessionInterval = setInterval(checkSession, 10000);
+    
+    // Clean up interval on unmount
+    return () => clearInterval(sessionInterval);
+  }, []);
+  // --- 🔐 AUTO-LOGOUT ENGINE END ---
   return (
     <BrowserRouter>
       <div className="antialiased font-sans">
