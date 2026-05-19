@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
-import SecuritySettings from './SecuritySettings';
+
 import { 
     Save, Loader2, MapPin, User, Mail, Phone, 
     Camera, Building2, ShieldCheck, Fingerprint, RefreshCcw 
@@ -184,9 +184,6 @@ const Profile = () => {
                 </button>
               </div>
             </form>
-              <div className="mt-12">
-               <SecuritySettings />
-              </div>
           </div>
 
         </div>
