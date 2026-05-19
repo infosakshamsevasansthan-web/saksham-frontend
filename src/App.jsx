@@ -179,12 +179,12 @@ function App() {
           <Route path="/admin/settings" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><SystemConfig /></ProtectedRoute>} />
           <Route path="/admin/device-control" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><DeviceControl /></ProtectedRoute>} />
           <Route path="/admin/device-control/geofence" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><StaffGeofence /></ProtectedRoute>} />
-         {/* 9. IEC Operations */}
-          <Route path="/admin/iec/campaigns" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard defaultTab="Campaigns" /></ProtectedRoute>} />
-          <Route path="/admin/iec/media" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard defaultTab="Media" /></ProtectedRoute>} />
-          <Route path="/admin/iec/engagement" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard defaultTab="Engagement" /></ProtectedRoute>} />
-          <Route path="/admin/iec/digital" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard defaultTab="Digital" /></ProtectedRoute>} />
-          <Route path="/admin/iec/activity" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard defaultTab="Activity" /></ProtectedRoute>} />
+        {/* 9. IEC Operations - Added 'key' to force re-render on path change */}
+          <Route path="/admin/iec/campaigns" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="camp" defaultTab="Campaigns" /></ProtectedRoute>} />
+          <Route path="/admin/iec/media" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="media" defaultTab="Media" /></ProtectedRoute>} />
+          <Route path="/admin/iec/engagement" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="eng" defaultTab="Engagement" /></ProtectedRoute>} />
+          <Route path="/admin/iec/digital" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="dig" defaultTab="Digital" /></ProtectedRoute>} />
+          <Route path="/admin/iec/activity" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="act" defaultTab="Activity" /></ProtectedRoute>} />
 
 
           {/* ================= FALLBACK 404 ================= */}
