@@ -66,7 +66,7 @@ import DeviceControl from './pages/Admin/Settings/DeviceControl';
 import StaffGeofence from './pages/Admin/Settings/StaffGeofence';
 import MaterialRecoveryFacility from './pages/Admin/SWM/MaterialRecoveryFacility';
 import IecDashboard from './pages/Admin/IEC/IecDashboard';
-import SecuritySettings from './pages/Admin/Settings/SecuritySettings';
+
 
 
 
@@ -123,7 +123,7 @@ function App() {
             <ProtectedRoute roleRequired="TENANT_ADMIN"><CityDashboard /></ProtectedRoute>
           } />
           <Route path="/admin/profile" element={<Profile />} />
-          <Route path="/admin/settings/security" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><SecuritySettings /></ProtectedRoute>} />
+          
           
           {/* 2. Live Tracking (Map) */}
           <Route path="/admin/live-staff" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><StaffTracking /></ProtectedRoute>} />
