@@ -66,6 +66,7 @@ import DeviceControl from './pages/Admin/Settings/DeviceControl';
 import StaffGeofence from './pages/Admin/Settings/StaffGeofence';
 import MaterialRecoveryFacility from './pages/Admin/SWM/MaterialRecoveryFacility';
 import IecDashboard from './pages/Admin/IEC/IecDashboard';
+import SecuritySettings from './pages/Admin/Settings/SecuritySettings';
 
 
 
@@ -122,6 +123,7 @@ function App() {
             <ProtectedRoute roleRequired="TENANT_ADMIN"><CityDashboard /></ProtectedRoute>
           } />
           <Route path="/admin/profile" element={<Profile />} />
+          <Route path="/admin/settings/security" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><SecuritySettings /></ProtectedRoute>} />
           
           {/* 2. Live Tracking (Map) */}
           <Route path="/admin/live-staff" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><StaffTracking /></ProtectedRoute>} />
@@ -185,6 +187,7 @@ function App() {
           <Route path="/admin/iec/engagement" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="eng" defaultTab="Engagement" /></ProtectedRoute>} />
           <Route path="/admin/iec/digital" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="dig" defaultTab="Digital" /></ProtectedRoute>} />
           <Route path="/admin/iec/activity" element={<ProtectedRoute roleRequired="TENANT_ADMIN"><IecDashboard key="act" defaultTab="Activity" /></ProtectedRoute>} />
+          
 
 
           {/* ================= FALLBACK 404 ================= */}
