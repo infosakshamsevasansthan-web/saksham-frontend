@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Map, MapPin, Users, Truck, AlertCircle, 
   Settings, ChevronDown, ChevronRight, FileText, UserPlus, 
-  QrCode, ClipboardList, Navigation, Home, Droplets, PieChart, ShieldCheck, Smartphone
+  QrCode, ClipboardList, Navigation, Home, Droplets, PieChart, 
+  ShieldCheck, Smartphone, Megaphone, Video, MessageSquare, Camera
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios'; // API कॉल के लिए ज़रूरी है
@@ -121,12 +122,14 @@ const CitySidebar = ({ isOpen }) => {
     },
     { id: 'config', label: 'System Configuration', icon: Settings, path: '/admin/settings' },
     { id: 'device', label: 'Device & Control', icon: Smartphone, path: '/admin/device-control' },
-    { 
-      id: 'iec', label: 'IEC Operations', icon: Truck,
+   { 
+      id: 'iec', label: 'IEC Operations', icon: Megaphone, // 📢 Publicity Icon
       subItems: [
-        { label: 'Training Program', path: '/admin/swm-logs' },
-        { label: 'Route Optimization', path: '/admin/routes' },
-        { label: 'Waste Processing Plant', path: '/admin/processing' }
+        { label: 'Awareness Campaigns', path: '/admin/iec/campaigns' },
+        { label: 'Media & Creatives', path: '/admin/iec/media' },
+        { label: 'Community Engagement', path: '/admin/iec/engagement' },
+        { label: 'Digital Outreach', path: '/admin/iec/digital' },
+        { label: 'Field Activity Logs', path: '/admin/iec/activity' }
       ]
     },
   ];
