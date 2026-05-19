@@ -77,15 +77,24 @@ const CityTopbar = ({ toggleSidebar }) => {
       });
       
       if (res.data.success) {
-        toast.success("Profile & Logo Updated! ✅");
+        // 1. LocalStorage mein naya naam save karo
+        localStorage.setItem('userName', profileData.full_name);
+        
+        // 2. Logo ka poora raasta (Full URL) save karo
+        if (res.data.logo_url) {
+          const fullLogoPath = `${API_BASE}${res.data.logo_url}`;
+          localStorage.setItem('muniLogo', fullLogoPath);
+          setLogoPreview(fullLogoPath);
+        }
+
+        toast.success("Profile Updated! ✅");
         setShowModal(null);
-        fetchProfile(); 
+        
+        // 3. Sabse zaruri: Page refresh karo taaki har jagah naya logo dikhne lage
+        setTimeout(() => {
+            window.location.reload(); 
+        }, 1000);
       }
-    } catch (err) {
-      toast.error("Update failed! ❌");
-    }
-    setLoading(false);
-  };
 
   return (
     <header className="h-20 bg-white flex items-center justify-between px-8 sticky top-0 z-[90] shadow-[0_8px_30px_rgb(0,0,0,0.08)] border-b border-slate-50">
