@@ -13,8 +13,8 @@ const StaffList = () => {
     const [staff, setStaff] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false); // 👈 Edit track karne ke liye
-    const [selectedId, setSelectedId] = useState(null); // 👈 ID track karne ke liye
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedId, setSelectedId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const tenantId = localStorage.getItem('tenantId');
 
