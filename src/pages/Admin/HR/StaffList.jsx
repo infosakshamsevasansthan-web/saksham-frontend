@@ -64,20 +64,19 @@ const StaffList = () => {
 
     // 🔥 4. EDIT BUTTON CLICK LOGIC (404 se bachne ke liye)
     const handleEditOpen = (person) => {
-        setIsEditMode(true);
-        setSelectedId(person.id);
-        setFormData({
-            full_name_en: person.full_name_en,
-            full_name_hi: person.full_name_hi,
-            employee_id: person.employee_id,
-            mobile: person.mobile,
-            fh_name: person.fh_name,
-            gender: person.gender,
-            address: person.address
-        });
-        setShowModal(true);
-    };
-
+    setIsEditMode(true); // Edit mode on karo
+    setSelectedId(person.id); // ID save karo
+    setFormData({
+        full_name_en: person.full_name_en,
+        full_name_hi: person.full_name_hi,
+        employee_id: person.employee_id,
+        mobile: person.mobile,
+        fh_name: person.fh_name,
+        gender: person.gender,
+        address: person.address
+    });
+    setShowModal(true);
+};
     // 5. Submit Registration or Update
     const handleSubmit = async (e) => {
         e.preventDefault();
