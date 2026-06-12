@@ -3,256 +3,254 @@ import { useNavigate } from 'react-router-dom';
 import CityLayout from '../../../components/layout/cityAdmin/CityLayout';
 import { 
     MessageSquare, AlertCircle, CheckCircle2, Clock, Plus, MapPin, 
-    ChevronRight, Loader2, Headset, Settings, RefreshCcw, LayoutGrid, 
-    Toolbox, User, Calendar, Filter
+    ChevronRight, Loader2, Headset, Settings, RefreshCcw, 
+    Download, FileText, Table as TableIcon, Filter, ChevronLeft, Search, 
+    LayoutGrid, Calendar, User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const GrievanceCenter = () => {
     const navigate = useNavigate();
-    const [stats, setStats] = useState({ today: 0, pending: 0, solved: 0 });
-    const [categories, setCategories] = useState([]);
-    const [listData, setListData] = useState([]); 
+    const [activeTab, setActiveTab] = useState('grievance'); // grievance | service
     const [loading, setLoading] = useState(true);
-    
-    // 🟢 Master State: Tab Switching
-    const [activeTab, setActiveTab] = useState('grievance'); // 'grievance' or 'service'
+    const [listData, setListData] = useState([]);
+    const [stats, setStats] = useState({ today: 0, pending: 0, solved: 0 });
+    const [searchTerm, setSearchBar] = useState("");
 
-    // Filter Logic
-    const [activeFilter, setActiveFilter] = useState({ 
-        type: 'status', 
-        value: 'Open', 
-        label: 'All Pending / सभी लंबित' 
-    });
+    // --- Pagination States ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
     
     const tenantId = localStorage.getItem('tenantId') || localStorage.getItem('tenant_id');
 
+    // 🟢 LOGIC: Real-time Fetch based on Tab
     const fetchData = useCallback(async () => {
-        if (!tenantId) return toast.error("Session expired.");
-        
+        if (!tenantId) return toast.error("Session Expired");
         setLoading(true);
         try {
-            // Dynamic Endpoints
             const prefix = activeTab === 'grievance' ? 'grievance' : 'service';
-            const dashboardUrl = `https://saksham-backend-9719.onrender.com/api/admin/${prefix}/dashboard/${tenantId}`;
-            const listUrl = `https://saksham-backend-9719.onrender.com/api/admin/${prefix}/list/${tenantId}`;
-
-            const [dashRes, listRes] = await Promise.all([
-                axios.get(dashboardUrl),
-                axios.get(listUrl, {
-                    params: {
-                        filter_type: activeFilter.type,
-                        filter_value: activeFilter.value
-                    }
-                })
+            const [statRes, listRes] = await Promise.all([
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/${prefix}/dashboard/${tenantId}`),
+                axios.get(`https://saksham-backend-9719.onrender.com/api/admin/${prefix}/list/${tenantId}`)
             ]);
-            
-            if (dashRes.data.status) setStats(dashRes.data.status);
-            if (dashRes.data.categories) setCategories(dashRes.data.categories);
+
+            setStats(statRes.data.status || { today: 0, pending: 0, solved: 0 });
             setListData(listRes.data.data || []);
-            
-        } catch (err) { 
-            console.error("Fetch Error:", err);
-            toast.error("Network sync failed!"); 
-        } finally { 
-            setLoading(false); 
+            setCurrentPage(1); // Reset page on tab switch
+        } catch (err) {
+            console.error(err);
+            toast.error("Network Sync Failed");
+        } finally {
+            setLoading(false);
         }
-    }, [tenantId, activeFilter, activeTab]);
+    }, [tenantId, activeTab]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
+    // 🟢 LOGIC: Search & Filter
+    const filteredData = listData.filter(item => 
+        (item.applicant_name || item.owner_name_en || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.ticket_id || item.id || "").toString().includes(searchTerm)
+    );
+
+    // 🟢 LOGIC: Pagination calculations
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const currentItems = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    // 🟢 LOGIC: Excel Export
+    const exportExcel = () => {
+        const fileData = filteredData.map(item => ({
+            ID: item.ticket_id || item.id,
+            Name: item.applicant_name || item.owner_name_en,
+            Mobile: item.mobile,
+            Type: item.type_name_en || item.service_type,
+            Ward: item.ward_no,
+            Status: item.status,
+            Date: new Date(item.created_at).toLocaleDateString()
+        }));
+        const ws = XLSX.utils.json_to_sheet(fileData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Records");
+        XLSX.writeFile(wb, `${activeTab}_report.xlsx`);
+    };
+
+    // 🟢 LOGIC: PDF Export
+    const exportPDF = () => {
+        const doc = new jsPDF();
+        doc.text(`${activeTab.toUpperCase()} MASTER REPORT`, 14, 15);
+        const tableColumn = ["ID", "Name", "Type", "Ward", "Status"];
+        const tableRows = filteredData.map(item => [
+            item.ticket_id || item.id,
+            item.applicant_name || item.owner_name_en,
+            item.type_name_en || item.service_type,
+            item.ward_no,
+            item.status
+        ]);
+        doc.autoTable(tableColumn, tableRows, { startY: 20 });
+        doc.save(`${activeTab}_report.pdf`);
+    };
+
     return (
         <CityLayout>
             <Toaster position="top-right" />
-            <div className="p-6 space-y-8 text-left bg-slate-50/50 min-h-screen">
+            <div className="p-4 space-y-6 text-left bg-slate-50/50 min-h-screen">
                 
-                {/* --- 1. PRO HEADER WITH TOGGLE --- */}
-                <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-                    <div className="flex items-center gap-6">
-                        <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center text-white shadow-2xl transition-all duration-500 ${activeTab === 'grievance' ? 'bg-rose-600 shadow-rose-200 rotate-0' : 'bg-emerald-600 shadow-emerald-200 rotate-[360deg]'}`}>
-                            {activeTab === 'grievance' ? <Headset size={32} /> : <Toolbox size={32} />}
+                {/* --- 1. COMPACT HEADER --- */}
+                <header className="flex flex-col lg:flex-row justify-between items-center bg-white p-5 rounded-3xl border border-slate-100 shadow-sm gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${activeTab === 'grievance' ? 'bg-rose-500 shadow-rose-100' : 'bg-emerald-600 shadow-emerald-100'}`}>
+                            {activeTab === 'grievance' ? <Headset size={24} /> : <Toolbox size={24} />}
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tighter leading-none italic">
-                                {activeTab === 'grievance' ? 'Citizen Redressal' : 'Service Requests'}
+                            <h1 className="text-xl font-black text-slate-800 uppercase tracking-tight italic leading-none">
+                                {activeTab === 'grievance' ? 'Redressal Hub' : 'Service Desk'}
                             </h1>
-                            <div className="flex items-center gap-2 mt-2">
-                                <div className={`w-2 h-2 rounded-full animate-pulse ${activeTab === 'grievance' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em]">Command Center Active</p>
-                            </div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Real-time City Administration</p>
                         </div>
                     </div>
 
-                    {/* 🟢 STYLISH TOGGLE TAB (The Controller) */}
-                    <div className="bg-slate-100 p-1.5 rounded-[26px] flex items-center w-full lg:w-auto shadow-inner">
+                    {/* 🟢 TOGGLE TAB (The Switch) */}
+                    <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 shadow-inner">
                         <button 
-                            onClick={() => {
-                                setActiveTab('grievance');
-                                setActiveFilter({ type: 'status', value: 'Open', label: 'All Pending Complaints' });
-                            }}
-                            className={`flex-1 lg:flex-none px-10 py-4 rounded-[22px] text-[11px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'grievance' ? 'bg-white text-rose-600 shadow-lg scale-100' : 'text-slate-500 hover:bg-slate-200/50'}`}
+                            onClick={() => setActiveTab('grievance')}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'grievance' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
                         >
-                            <MessageSquare size={16}/> Grievances
+                            Grievances
                         </button>
                         <button 
-                            onClick={() => {
-                                setActiveTab('service');
-                                setActiveFilter({ type: 'status', value: 'Pending', label: 'All Service Requests' });
-                            }}
-                            className={`flex-1 lg:flex-none px-10 py-4 rounded-[22px] text-[11px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'service' ? 'bg-white text-emerald-600 shadow-lg scale-100' : 'text-slate-500 hover:bg-slate-200/50'}`}
+                            onClick={() => setActiveTab('service')}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'service' ? 'bg-white text-emerald-600 shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
                         >
-                            <LayoutGrid size={16}/> Services
+                            Services
                         </button>
                     </div>
 
-                    <div className="flex gap-3 w-full lg:w-auto">
-                        <button onClick={fetchData} className="flex-1 lg:flex-none p-5 bg-slate-50 text-slate-400 rounded-3xl hover:text-emerald-600 transition-all border border-slate-100">
-                            <RefreshCcw size={22} className={loading ? 'animate-spin' : ''}/>
-                        </button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => navigate('/admin/settings/grievance')} className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all border border-slate-100"><Settings size={20}/></button>
+                        <button onClick={fetchData} className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-emerald-600 transition-all border border-slate-100"><RefreshCcw size={20} className={loading ? 'animate-spin' : ''}/></button>
                         <button 
                             onClick={() => navigate(activeTab === 'grievance' ? '/admin/complaints/add' : '/admin/services/new')}
-                            className={`flex-1 lg:flex-none px-10 py-5 rounded-[25px] font-black text-[11px] uppercase tracking-widest text-white shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-3 ${activeTab === 'grievance' ? 'bg-slate-900 shadow-slate-200' : 'bg-emerald-900 shadow-emerald-200'}`}
+                            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.1em] hover:bg-rose-600 transition-all shadow-xl flex items-center gap-2"
                         >
-                            <Plus size={20}/> {activeTab === 'grievance' ? 'New Ticket' : 'Create Request'}
+                            <Plus size={18}/> New Ticket
                         </button>
                     </div>
+                </header>
+
+                {/* --- 2. COMPACT STATUS CARDS --- */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <StatusCard label="Current Today" count={stats.today} icon={Clock} color="blue" />
+                    <StatusCard label="Active Pending" count={stats.pending} icon={AlertCircle} color="rose" />
+                    <StatusCard label="Case Solved" count={stats.solved} icon={CheckCircle2} color="emerald" />
                 </div>
 
-                {/* --- 2. STATUS CARDS (Adaptive Colors) --- */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <StatusCard 
-                        label={activeTab === 'grievance' ? "Today's Grievances" : "Scheduled Today"} 
-                        count={stats.today} icon={Clock} color="blue" 
-                        onClick={() => setActiveFilter({type:'status', value: activeTab === 'grievance' ? 'Open' : 'Pending', label:"Today's Summary"})} 
-                    />
-                    <StatusCard 
-                        label="Total Pending" count={stats.pending} icon={AlertCircle} color="rose" 
-                        active={activeFilter.type === 'status' && (activeFilter.value === 'Open' || activeFilter.value === 'Pending')}
-                        onClick={() => setActiveFilter({type:'status', value: activeTab === 'grievance' ? 'Open' : 'Pending', label:"Pending Queue"})} 
-                    />
-                    <StatusCard 
-                        label="Closed / Success" count={stats.solved} icon={CheckCircle2} color="emerald" 
-                        active={activeFilter.value === 'Resolved' || activeFilter.value === 'Completed'}
-                        onClick={() => setActiveFilter({type:'status', value: activeTab === 'grievance' ? 'Resolved' : 'Completed', label:"Successfully Handled"})} 
-                    />
-                </div>
-
-                {/* --- 3. DYNAMIC TABLE SECTION --- */}
-                <div className="bg-white rounded-[50px] border border-slate-100 shadow-2xl overflow-hidden transition-all duration-500">
-                    <div className="p-10 border-b border-slate-50 bg-slate-50/20 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className={`w-1 h-10 rounded-full ${activeTab === 'grievance' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-                            <div>
-                                <h2 className="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">{activeFilter.label}</h2>
-                                <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest italic">Database Registry: {listData.length} active nodes</p>
+                {/* --- 3. THE COMMAND TABLE CARD --- */}
+                <div className="bg-white rounded-[35px] border border-slate-100 shadow-xl overflow-hidden flex flex-col">
+                    
+                    {/* 🟢 TOOLBAR: Pagination + Search + Export */}
+                    <div className="p-5 border-b border-slate-50 bg-slate-50/30 flex flex-wrap justify-between items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search Citizen / ID..." 
+                                    className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-rose-500 transition-all w-64"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchBar(e.target.value)}
+                                />
                             </div>
+                            <select 
+                                value={itemsPerPage}
+                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase outline-none"
+                            >
+                                {[5, 10, 20, 50].map(v => <option key={v} value={v}>Show {v}</option>)}
+                            </select>
                         </div>
-                        <div className="flex items-center gap-6">
-                             <div className="flex items-center gap-3 bg-slate-100 px-5 py-2.5 rounded-full border border-slate-200/50 shadow-inner">
-                                <Filter size={14} className="text-slate-400" />
-                                <span className="text-[10px] font-black uppercase text-slate-500 tracking-tighter tabular-nums">Auto-Sort: Latest First</span>
-                             </div>
-                             <div className="flex items-center gap-3 bg-emerald-50 px-5 py-2.5 rounded-full border border-emerald-100 shadow-sm">
-                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"/>
-                                <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Hierarchy Verified</span>
-                            </div>
+
+                        <div className="flex gap-2">
+                            <button onClick={exportExcel} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all">
+                                <TableIcon size={14}/> Excel
+                            </button>
+                            <button onClick={exportPDF} className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-100 hover:bg-rose-600 hover:text-white transition-all">
+                                <FileText size={14}/> PDF
+                            </button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto no-scrollbar">
-                        <table className="w-full text-left">
-                            <thead className="bg-white border-b border-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                    {/* 🟢 TABLE WITH SCROLL */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[900px]">
+                            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-50">
                                 <tr>
-                                    <th className="p-10">{activeTab === 'grievance' ? 'Citizen Profile' : 'Requested By'}</th>
-                                    <th className="p-6">{activeTab === 'grievance' ? 'Grievance Insight' : 'Service Logistics'}</th>
-                                    <th className="p-6">Territory</th>
-                                    <th className="p-6 text-center">Status Badge</th>
-                                    <th className="p-10 text-right">Access</th>
+                                    <th className="p-6">Profile & Contact</th>
+                                    <th className="p-6">{activeTab === 'grievance' ? 'Grievance Insight' : 'Service Parameters'}</th>
+                                    <th className="p-6">Location Node</th>
+                                    <th className="p-6 text-center">Live Status</th>
+                                    <th className="p-6 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 <AnimatePresence mode='wait'>
                                 {loading ? (
-                                    <motion.tr initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-                                        <td colSpan="5" className="p-40 text-center">
-                                            <Loader2 className={`animate-spin mx-auto mb-6 ${activeTab === 'grievance' ? 'text-rose-600' : 'text-emerald-600'}`} size={48} />
-                                            <p className="font-black text-[11px] uppercase tracking-[0.5em] text-slate-300 animate-pulse">Establishing Secure Stream...</p>
-                                        </td>
-                                    </motion.tr>
-                                ) : listData.length === 0 ? (
-                                    <motion.tr initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
-                                        <td colSpan="5" className="p-40 text-center">
-                                            <AlertCircle className="mx-auto mb-6 text-slate-200" size={56} />
-                                            <p className="text-slate-300 font-black uppercase text-sm tracking-[0.3em] italic opacity-50">No Activity Detected in Current Node</p>
-                                        </td>
-                                    </motion.tr>
-                                ) : listData.map((item, idx) => (
+                                    <tr><td colSpan="5" className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-rose-500 mb-4" size={32}/><p className="font-black text-[10px] uppercase tracking-widest text-slate-400">Syncing Master Database...</p></td></tr>
+                                ) : currentItems.length === 0 ? (
+                                    <tr><td colSpan="5" className="p-20 text-center text-slate-300 font-black uppercase italic tracking-widest text-xs">No matching records found</td></tr>
+                                ) : currentItems.map((item, idx) => (
                                     <motion.tr 
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: idx * 0.04 }}
-                                        key={item.id} 
-                                        className="hover:bg-slate-50/50 transition-all duration-300 group cursor-default"
+                                        initial={{opacity:0}} animate={{opacity:1}} transition={{delay: idx*0.03}}
+                                        key={item.id} className="hover:bg-slate-50/50 transition-colors group"
                                     >
-                                        <td className="p-10">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-2 ${activeTab === 'grievance' ? 'bg-rose-50 border-rose-100 text-rose-500 group-hover:bg-rose-600 group-hover:text-white' : 'bg-emerald-50 border-emerald-100 text-emerald-500 group-hover:bg-emerald-600 group-hover:text-white'}`}>
-                                                    <User size={20} />
+                                        <td className="p-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-800 group-hover:text-white transition-all">
+                                                    <User size={18} />
                                                 </div>
                                                 <div>
-                                                    <p className="font-black text-slate-800 text-[13px] uppercase tracking-tighter leading-none">{item.applicant_name || item.owner_name_en || 'Node User'}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 mt-2 flex items-center gap-1 tabular-nums italic">+91 {item.mobile}</p>
+                                                    <p className="font-black text-slate-800 text-xs uppercase">{item.applicant_name || item.owner_name_en || 'Citizen'}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 tabular-nums">+91 {item.mobile}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-6">
-                                            <div className="flex flex-col gap-2">
-                                                <span className={`text-[10px] font-black uppercase tracking-tight px-3 py-1 rounded-lg self-start border-2 ${activeTab === 'grievance' ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
-                                                    {activeTab === 'grievance' ? (item.type_name_en || 'Complaint') : (item.service_type || 'Service')}
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className={`text-[9px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md self-start border ${activeTab === 'grievance' ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-700 bg-emerald-50 border-emerald-100'}`}>
+                                                    {activeTab === 'grievance' ? item.type_name_en : item.service_type}
                                                 </span>
-                                                
-                                                {/* 🟢 SERVICE LOGISTICS DATA */}
                                                 {activeTab === 'service' && (
-                                                    <div className="flex flex-wrap items-center gap-3">
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                                                            <LayoutGrid size={11} className="text-emerald-500"/> Qty: <span className="text-slate-800">{item.quantity_estimate || '1'}</span>
-                                                        </p>
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                                                            <Calendar size={11} className="text-blue-500"/> Sch: <span className="text-slate-800">{item.scheduled_date}</span>
-                                                        </p>
+                                                    <div className="flex gap-2 text-[9px] font-black text-slate-400 uppercase">
+                                                        <span className="flex items-center gap-1"><LayoutGrid size={10}/> Qty: {item.quantity_estimate}</span>
+                                                        <span className="flex items-center gap-1"><Calendar size={10}/> Sch: {item.scheduled_date}</span>
                                                     </div>
                                                 )}
-
-                                                <p className="text-[10px] font-bold text-slate-500 line-clamp-1 max-w-[280px] leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                                    "{item.description || item.subject || 'Standard system prompt response.'}"
-                                                </p>
+                                                <p className="text-[10px] font-medium text-slate-500 line-clamp-1 italic max-w-[250px]">"{item.description || item.subject || 'Standard request'}"</p>
                                             </div>
                                         </td>
                                         <td className="p-6">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-[12px] font-black text-slate-700 uppercase tracking-tighter">
-                                                    <MapPin size={16} className={activeTab === 'grievance' ? 'text-rose-500' : 'text-emerald-500'}/> Ward No. {item.ward_no}
-                                                </div>
-                                                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] block ml-6">Zonal Layer-1</span>
+                                            <div className="flex items-center gap-2 text-[11px] font-black text-slate-600 uppercase">
+                                                <MapPin size={14} className={activeTab === 'grievance' ? 'text-rose-500' : 'text-emerald-500'}/> Ward No. {item.ward_no}
                                             </div>
                                         </td>
                                         <td className="p-6 text-center">
-                                            <div className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 inline-block transition-all duration-300 ${item.status === 'Open' || item.status === 'Pending' ? 'bg-rose-50 text-rose-600 border-rose-100 shadow-sm shadow-rose-100/50' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                            <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase border-2 ${item.status === 'Open' || item.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
                                                 {item.status}
                                             </div>
                                         </td>
-                                        <td className="p-10 text-right">
-                                            <motion.button 
-                                                whileHover={{ x: 5 }}
-                                                onClick={() => navigate(activeTab === 'grievance' ? `/admin/complaints/view/${item.id}` : `/admin/services/view/${item.id}`)}
-                                                className={`px-8 py-4 rounded-[22px] text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl flex items-center gap-3 ml-auto transition-all ${activeTab === 'grievance' ? 'bg-slate-900 hover:bg-rose-600 shadow-rose-100' : 'bg-slate-900 hover:bg-emerald-600 shadow-emerald-100'}`}
+                                        <td className="p-6 text-right">
+                                            <button 
+                                                onClick={() => navigate(`/admin/${activeTab}/view/${item.id}`)}
+                                                className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"
                                             >
-                                                Inspect <ChevronRight size={16} />
-                                            </motion.button>
+                                                <ChevronRight size={16}/>
+                                            </button>
                                         </td>
                                     </motion.tr>
                                 ))}
@@ -260,33 +258,51 @@ const GrievanceCenter = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* 🟢 PAGINATION FOOTER */}
+                    <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <div className="flex gap-2">
+                            <button 
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => p - 1)}
+                                className="p-2.5 bg-white border border-slate-200 rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"
+                            >
+                                <ChevronLeft size={16}/>
+                            </button>
+                            <button 
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                onClick={() => setCurrentPage(p => p + 1)}
+                                className="p-2.5 bg-white border border-slate-200 rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"
+                            >
+                                <ChevronRight size={16}/>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </CityLayout>
     );
 };
 
-const StatusCard = ({ label, count, icon: Icon, color, onClick, active }) => {
-    const colorMap = {
-        blue: "bg-blue-50 text-blue-600 border-blue-500 shadow-blue-100/50",
-        rose: "bg-rose-50 text-rose-600 border-rose-500 shadow-rose-100/50",
-        emerald: "bg-emerald-50 text-emerald-600 border-emerald-500 shadow-emerald-100/50"
+const StatusCard = ({ label, count, icon: Icon, color }) => {
+    const themes = {
+        blue: "text-blue-600 bg-blue-50 border-blue-100",
+        rose: "text-rose-600 bg-rose-50 border-rose-100",
+        emerald: "text-emerald-600 bg-emerald-50 border-emerald-100"
     };
-
     return (
-        <motion.div 
-            whileHover={{ y: -8, scale: 1.02 }}
-            onClick={onClick}
-            className={`p-8 rounded-[45px] border-2 cursor-pointer transition-all flex items-center gap-6 ${active ? `bg-white shadow-2xl ${colorMap[color].split(' ')[2]}` : 'border-transparent bg-white shadow-sm hover:border-slate-100'}`}
-        >
-            <div className={`w-16 h-16 rounded-[26px] flex items-center justify-center ${colorMap[color].split(' ')[0]} ${colorMap[color].split(' ')[1]}`}>
-                <Icon size={34} />
+        <div className="bg-white p-5 rounded-[30px] border border-slate-100 shadow-sm flex items-center gap-5 group hover:shadow-lg transition-all">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${themes[color]}`}>
+                <Icon size={24} />
             </div>
             <div>
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-3 italic">{label}</p>
-                <p className="text-4xl font-black text-slate-800 leading-none tabular-nums tracking-tighter">{count || 0}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-2xl font-black text-slate-800 leading-none tabular-nums">{count || 0}</p>
             </div>
-        </motion.div>
+        </div>
     );
 };
 
