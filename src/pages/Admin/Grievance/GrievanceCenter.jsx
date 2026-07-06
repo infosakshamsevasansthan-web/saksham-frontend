@@ -124,7 +124,7 @@ const GrievanceCenter = () => {
                     <div className="flex items-center gap-2">
                         {/* 🟢 FIXED: Settings Link based on Tab */}
                         <button 
-                            onClick={() => navigate(activeTab === 'grievance' ? '/admin/grievance/settings' : '/admin/services/settings')} 
+                            onClick={() => navigate(activeTab === 'grievance' ? '/admin/complaints/settings' : '/admin/complaints/settings')} 
                             className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition-all border border-slate-100"
                         >
                             <Settings size={20}/>
