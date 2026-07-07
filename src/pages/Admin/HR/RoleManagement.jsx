@@ -157,21 +157,30 @@ const RoleManagement = () => {
 };
     const handleCreateRole = async (roleName) => {
     try {
-        const token = localStorage.getItem('token'); // Token nikalna hai
+        // 1. LocalStorage se token nikalo (Jo login ke waqt save hua tha)
+        const token = localStorage.getItem('token'); 
+
+        if (!token) {
+            toast.error("Aap login nahi hain! Kripya login karein.");
+            return;
+        }
+
+        // 2. Axios call mein Headers bhejye
         await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/create', 
-        { 
-            role_name: roleName 
-            // ❌ tenant_id hataya yahan se
-        }, 
-        {
-            headers: { Authorization: `Bearer ${token}` } // ✅ Token bheja
-        });
+            { role_name: roleName }, // ✅ Body mein ab tenant_id bhejne ki zaroorat nahi hai
+            {
+                headers: { 
+                    'Authorization': `Bearer ${token}` // ✅ Ye Backend ke Middleware ko token dega
+                }
+            }
+        );
 
         toast.success("New Role Created! 🚀");
-        fetchData();
+        fetchData(); // List refresh karne ke liye
     } catch (err) {
-        console.error(err);
-        toast.error(err.response?.data?.message || "Role creation failed");
+        console.error("Error detail:", err.response);
+        // Agar backend 401 bhej raha hai toh error message dikhao
+        toast.error(err.response?.data?.message || "Role banane mein dikkat aayi");
     }
 };
 
