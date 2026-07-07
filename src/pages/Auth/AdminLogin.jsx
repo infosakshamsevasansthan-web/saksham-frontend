@@ -104,11 +104,14 @@ const AdminLogin = () => {
       });
 
       const data = await response.json();
+      console.log(data);
       if (data.success) {
         localStorage.clear();
+        localStorage.setItem("token", data.token);
         localStorage.setItem('isAuth', 'true');
         localStorage.setItem('tenantId', data.user.tenant);
         localStorage.setItem('userName', data.user.name);
+        
         
         const tenant = data.user.tenant.toUpperCase();
         if (tenant === 'SUPER_ADMIN' || formData.tenantId.toUpperCase() === 'MASTER') {
