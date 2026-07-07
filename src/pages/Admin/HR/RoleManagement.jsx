@@ -141,31 +141,39 @@ const RoleManagement = () => {
     };
 
     const saveRoleConfig = async () => {
-        if (!selectedRole) return;
-        try {
-            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/save', {
-                tenant_id: tenantId,
-                role_name: selectedRole.role_name,
-                permissions: permissions
-            });
-            toast.success("Permissions Synced! 🔒");
-            fetchData();
-        } catch (err) { toast.error("Update failed"); }
-    };
-
+    if (!selectedRole) return;
+    try {
+        const token = localStorage.getItem('token');
+        await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/save', {
+            role_name: selectedRole.role_name,
+            permissions: permissions
+            // ❌ tenant_id hataya
+        }, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success("Permissions Synced! 🔒");
+        fetchData();
+    } catch (err) { toast.error("Update failed"); }
+};
     const handleCreateRole = async (roleName) => {
-        try {
-            await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/create', {
-                tenant_id: tenantId,
-                role_name: roleName
-            });
-            toast.success("New Role Created! 🚀");
-            fetchData();
-        } catch (err) {
-            console.error(err);
-            toast.error("Role creation failed");
-        }
-    };
+    try {
+        const token = localStorage.getItem('token'); // Token nikalna hai
+        await axios.post('https://saksham-backend-9719.onrender.com/api/admin/roles/create', 
+        { 
+            role_name: roleName 
+            // ❌ tenant_id hataya yahan se
+        }, 
+        {
+            headers: { Authorization: `Bearer ${token}` } // ✅ Token bheja
+        });
+
+        toast.success("New Role Created! 🚀");
+        fetchData();
+    } catch (err) {
+        console.error(err);
+        toast.error(err.response?.data?.message || "Role creation failed");
+    }
+};
 
     return (
         <CityLayout>
