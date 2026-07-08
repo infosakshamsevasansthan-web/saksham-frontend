@@ -54,7 +54,7 @@ const RoadAssign = ({ staff, onClose }) => {
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-xl rounded-[3rem] overflow-hidden shadow-2xl">
                 <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-indigo-500 rounded-2xl"><Road size={24}/></div>
+                        <div className="p-3 bg-indigo-500 rounded-2xl"><Route size={24}/></div>
                         <div>
                             <h3 className="text-xl font-black uppercase italic tracking-tight">Road Sweeping Duty</h3>
                             <p className="text-xs font-bold text-indigo-300">Staff: {staff.full_name_en}</p>
