@@ -8,7 +8,7 @@ import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
 // --- 🛡️ Path Fixes: Aapke GitHub Screenshot ke anusaar ---
-import SuccessModal from '../../../components/SuccessModal';
+import SuccessModal from '../../../../components/SuccessModal';
 import CollectorForm from './forms/CollectorForm';
 import RoadSweeperForm from './forms/RoadSweeperForm';
 import WardInspectorForm from './forms/WardInspectorForm';
