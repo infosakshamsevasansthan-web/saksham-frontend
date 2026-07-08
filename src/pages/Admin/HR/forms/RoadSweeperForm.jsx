@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Road, Navigation, MapPin, Save } from 'lucide-react';
+import { X, Route, Navigation, MapPin, Save } from 'lucide-react'; // ✅ Road hata kar Route kiya
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
@@ -29,7 +29,6 @@ const RoadSweeperForm = ({ staff, onClose }) => {
     };
 
     const handleSubmit = () => {
-        // Submit to API
         toast.success(`Success: ${staff.full_name_en} Assigned to Road Duty!`);
         onClose();
     };
@@ -39,9 +38,11 @@ const RoadSweeperForm = ({ staff, onClose }) => {
             <div className="bg-white w-full max-w-xl rounded-[3rem] overflow-hidden shadow-2xl">
                 <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-indigo-500 rounded-2xl shadow-lg"><Road size={24}/></div>
+                        <div className="p-3 bg-indigo-500 rounded-2xl shadow-lg">
+                            <Route size={24}/> {/* ✅ Yahan bhi Route kiya */}
+                        </div>
                         <div>
-                            <h2 className="text-xl font-black uppercase italic">Road Sweeping Duty</h2>
+                            <h2 className="text-xl font-black uppercase italic tracking-tight">Road Sweeping Duty</h2>
                             <p className="text-xs font-bold text-slate-400">Target: {staff.full_name_en}</p>
                         </div>
                     </div>
@@ -101,4 +102,5 @@ const RoadSweeperForm = ({ staff, onClose }) => {
         </motion.div>
     );
 };
+
 export default RoadSweeperForm;
