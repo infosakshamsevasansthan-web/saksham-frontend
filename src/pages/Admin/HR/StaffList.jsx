@@ -119,12 +119,21 @@ const StaffList = () => {
     };
 
     const handleEditOpen = (p) => {
-        setIsEditMode(true);
-        setSelectedId(p.id);
-        setFormData({ ...p });
-        setShowModal(true);
-    };
-
+    setIsEditMode(true);
+    setSelectedId(p.id);
+    setFormData({
+        full_name_en: p.full_name_en || '',
+        full_name_hi: p.full_name_hi || '',
+        employee_id: p.employee_id || '',
+        mobile: p.mobile || '',
+        fh_name: p.fh_name || '',
+        gender: p.gender || 'Male',
+        address: p.address || '',
+        role_id: p.role_id || '',
+        designation_id: p.designation_id || '' // Ensure this matches backend key
+    });
+    setShowModal(true);
+};
     const closeModal = () => {
         setShowModal(false);
         setIsEditMode(false);
