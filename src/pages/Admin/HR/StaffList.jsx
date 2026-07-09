@@ -231,7 +231,7 @@ const StaffList = () => {
                                                     {roles.find(r => r.id === s.role_id)?.role_name || 'GUEST'}
                                                 </span>
                                                 <span className="text-xs font-bold text-slate-700">
-                                                    {designations.find(d => d.id === s.designation_id)?.designation_name_en || 'Pending Post'}
+                                                    {designations.find(d => String(d.id) === String(s.designation_id))?.designation_name_en || 'Pending Post'}
                                                 </span>
                                             </div>
                                         </td>
